@@ -47,11 +47,13 @@ class MockProposer(BaseProposer):
         return_confidence: float = 0.9,
         proposer_id_prefix: str = "mock-proposer",
         delay_seconds: float = 0.0,
+        failure_exception: Exception | None = None,
     ) -> None:
         self.return_content = return_content
         self.return_confidence = return_confidence
         self.proposer_id_prefix = proposer_id_prefix
         self.delay_seconds = delay_seconds
+        self.failure_exception = failure_exception
 
     async def propose(self, query: str, persona: Persona) -> ProposerOutput:
         logger.info(f"MockProposer processing query: '{query}' with persona: '{persona.name}'")
@@ -59,6 +61,9 @@ class MockProposer(BaseProposer):
         # Simulate processing
         if self.delay_seconds > 0:
             await asyncio.sleep(self.delay_seconds)
+
+        if self.failure_exception:
+            raise self.failure_exception
 
         content = f"{self.return_content} (Query: {query}, Persona: {persona.name})"
 
