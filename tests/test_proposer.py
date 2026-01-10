@@ -9,6 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 import asyncio
+
 import pytest
 
 from coreason_council.core.proposer import MockProposer
@@ -106,6 +107,7 @@ async def test_mock_proposer_concurrency(mock_persona: Persona) -> None:
         return await proposer.propose(f"query-{idx}", mock_persona)
 
     import time
+
     start_time = time.time()
 
     # Launch 10 tasks concurrently
