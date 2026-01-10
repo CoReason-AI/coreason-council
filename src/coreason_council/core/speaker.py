@@ -41,10 +41,17 @@ class ChamberSpeaker:
         if not proposers:
             raise ValueError("The Council requires at least one Proposer.")
 
-        self.proposers = proposers
+        if dissenter is None:
+            raise ValueError("The Council requires a Dissenter.")
+
+        if aggregator is None:
+            raise ValueError("The Council requires an Aggregator.")
+
+        # Create a defensive copy to ensure immutability from the outside
+        self.proposers = list(proposers)
         self.dissenter = dissenter
         self.aggregator = aggregator
-        logger.info(f"ChamberSpeaker initialized with {len(proposers)} proposers.")
+        logger.info(f"ChamberSpeaker initialized with {len(self.proposers)} proposers.")
 
     async def resolve_query(self, query: str) -> tuple[Verdict, CouncilTrace]:
         """
