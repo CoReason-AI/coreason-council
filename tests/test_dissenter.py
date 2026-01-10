@@ -67,5 +67,6 @@ async def test_mock_dissenter_delay(mock_proposal: ProposerOutput, critic_person
     critique = await dissenter.critique(mock_proposal, critic_persona)
     assert critique.agreement_score == 0.5  # Default
 
-    entropy = await dissenter.calculate_entropy([mock_proposal])
+    # Pass two proposals to trigger the default entropy return (skipping the <=1 check)
+    entropy = await dissenter.calculate_entropy([mock_proposal, mock_proposal])
     assert entropy == 0.1  # Default

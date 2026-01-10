@@ -99,6 +99,9 @@ class MockDissenter(BaseDissenter):
         if self.delay_seconds > 0:
             await asyncio.sleep(self.delay_seconds)
 
+        if len(proposals) <= 1:
+            return 0.0
+
         # In a real implementation, this would compare contents.
         # Here we just return the configured mock value.
         return self.default_entropy_score
