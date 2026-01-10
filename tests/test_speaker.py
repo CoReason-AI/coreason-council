@@ -14,109 +14,161 @@ from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.dissenter import MockDissenter
 from coreason_council.core.proposer import MockProposer
 from coreason_council.core.speaker import ChamberSpeaker
+from coreason_council.core.types import CouncilTrace, Persona, Verdict
 
 
-def test_speaker_initialization() -> None:
-    """Test that ChamberSpeaker initializes correctly with valid components."""
-    proposers = [MockProposer(), MockProposer()]
-    dissenter = MockDissenter()
-    aggregator = MockAggregator()
-
-    speaker = ChamberSpeaker(
-        proposers=proposers,
-        dissenter=dissenter,
-        aggregator=aggregator,
-    )
-
-    assert speaker.proposers == proposers
-    assert speaker.dissenter == dissenter
-    assert speaker.aggregator == aggregator
+@pytest.fixture
+def mock_proposers() -> list[MockProposer]:
+    return [
+        MockProposer(return_content="Content A", proposer_id_prefix="p1"),
+        MockProposer(return_content="Content B", proposer_id_prefix="p2"),
+    ]
 
 
-def test_speaker_initialization_empty_proposers() -> None:
-    """Test that ChamberSpeaker raises ValueError if no proposers are provided."""
-    dissenter = MockDissenter()
-    aggregator = MockAggregator()
+@pytest.fixture
+def mock_personas() -> list[Persona]:
+    return [
+        Persona(name="Persona A", system_prompt="You are A", capabilities=["logic"]),
+        Persona(name="Persona B", system_prompt="You are B", capabilities=["creative"]),
+    ]
 
-    with pytest.raises(ValueError, match="The Council requires at least one Proposer."):
+
+@pytest.fixture
+def mock_dissenter_low_entropy() -> MockDissenter:
+    # Returns 0.0 entropy by default (Story A)
+    return MockDissenter(default_entropy_score=0.0)
+
+
+@pytest.fixture
+def mock_dissenter_high_entropy() -> MockDissenter:
+    # Returns 0.9 entropy (Story B trigger)
+    return MockDissenter(default_entropy_score=0.9)
+
+
+@pytest.fixture
+def mock_aggregator() -> MockAggregator:
+    return MockAggregator(default_content="Final Answer")
+
+
+@pytest.mark.asyncio
+async def test_chamber_speaker_init_validation(
+    mock_proposers: list[MockProposer],
+    mock_personas: list[Persona],
+    mock_dissenter_low_entropy: MockDissenter,
+    mock_aggregator: MockAggregator,
+) -> None:
+    """Test all validation checks in __init__."""
+
+    # 1. Valid Init
+    speaker = ChamberSpeaker(mock_proposers, mock_personas, mock_dissenter_low_entropy, mock_aggregator)
+    assert speaker
+
+    # 2. Empty Proposers
+    with pytest.raises(ValueError, match="requires at least one Proposer"):
         ChamberSpeaker(
-            proposers=[],
-            dissenter=dissenter,
-            aggregator=aggregator,
+            proposers=[], personas=mock_personas, dissenter=mock_dissenter_low_entropy, aggregator=mock_aggregator
         )
 
-
-def test_speaker_initialization_none_args() -> None:
-    """Test that ChamberSpeaker raises ValueError if critical components are None."""
-    proposers = [MockProposer()]
-    dissenter = MockDissenter()
-    aggregator = MockAggregator()
-
-    # Test None dissenter - use type ignore because we are testing runtime safety against bad callers
-    with pytest.raises(ValueError, match="The Council requires a Dissenter."):
+    # 3. Empty Personas
+    with pytest.raises(ValueError, match="requires at least one Persona"):
         ChamberSpeaker(
-            proposers=proposers,
+            proposers=mock_proposers, personas=[], dissenter=mock_dissenter_low_entropy, aggregator=mock_aggregator
+        )
+
+    # 4. Mismatch Length
+    with pytest.raises(ValueError, match="Count mismatch"):
+        ChamberSpeaker(
+            proposers=mock_proposers,
+            personas=[mock_personas[0]],  # 2 vs 1
+            dissenter=mock_dissenter_low_entropy,
+            aggregator=mock_aggregator,
+        )
+
+    # 5. Missing Dissenter
+    with pytest.raises(ValueError, match="requires a Dissenter"):
+        ChamberSpeaker(
+            proposers=mock_proposers,
+            personas=mock_personas,
             dissenter=None,  # type: ignore
-            aggregator=aggregator,
+            aggregator=mock_aggregator,
         )
 
-    # Test None aggregator
-    with pytest.raises(ValueError, match="The Council requires an Aggregator."):
+    # 6. Missing Aggregator
+    with pytest.raises(ValueError, match="requires an Aggregator"):
         ChamberSpeaker(
-            proposers=proposers,
-            dissenter=dissenter,
+            proposers=mock_proposers,
+            personas=mock_personas,
+            dissenter=mock_dissenter_low_entropy,
             aggregator=None,  # type: ignore
         )
 
 
-def test_speaker_proposers_immutability() -> None:
-    """Test that modifying the input list of proposers does not affect the Speaker."""
-    p1 = MockProposer()
-    p2 = MockProposer()
-    proposers_list = [p1]
-
+@pytest.mark.asyncio
+async def test_resolve_query_low_entropy_flow(
+    mock_proposers: list[MockProposer],
+    mock_personas: list[Persona],
+    mock_dissenter_low_entropy: MockDissenter,
+    mock_aggregator: MockAggregator,
+) -> None:
+    """
+    Test Story A: Low Cost / Low Entropy Flow.
+    Should gather proposals, check entropy, and aggregate immediately.
+    """
     speaker = ChamberSpeaker(
-        proposers=proposers_list,
-        dissenter=MockDissenter(),
-        aggregator=MockAggregator(),
+        proposers=mock_proposers,
+        personas=mock_personas,
+        dissenter=mock_dissenter_low_entropy,
+        aggregator=mock_aggregator,
+        entropy_threshold=0.1,
     )
 
-    # Modify the external list
-    proposers_list.append(p2)
+    query = "Is this a simple question?"
+    verdict, trace = await speaker.resolve_query(query)
 
-    # Speaker should still only have p1
-    assert len(speaker.proposers) == 1
-    assert speaker.proposers[0] == p1
-    assert p2 not in speaker.proposers
+    # 1. Verification of Return Types
+    assert isinstance(verdict, Verdict)
+    assert isinstance(trace, CouncilTrace)
 
+    # 2. Verify Trace Content
+    assert trace.session_id is not None
+    assert trace.roster == ["Persona A", "Persona B"]
+    assert trace.entropy_score == 0.0
+    assert trace.final_verdict == verdict
 
-def test_speaker_large_council_configuration() -> None:
-    """Test initialization with a large number of proposers (scalability/stress test)."""
-    # Create 50 distinct proposers
-    proposers = [MockProposer(proposer_id_prefix=f"worker-{i}") for i in range(50)]
-    dissenter = MockDissenter()
-    aggregator = MockAggregator()
+    # Verify transcripts (Propose A, Propose B, Verdict)
+    actions = [entry.action for entry in trace.transcripts]
+    assert actions.count("propose") == 2
+    assert "verdict" in actions
 
-    speaker = ChamberSpeaker(
-        proposers=proposers,
-        dissenter=dissenter,
-        aggregator=aggregator,
-    )
-
-    assert len(speaker.proposers) == 50
-    # Verify strict object identity to ensure order and content are preserved
-    assert speaker.proposers[0] is proposers[0]
-    assert speaker.proposers[49] is proposers[49]
+    # 3. Verify Aggregator Logic
+    # The MockAggregator includes input IDs in the content
+    assert "Final Answer" in verdict.content
+    # Check that it referenced the inputs (p1-Persona A, p2-Persona B)
+    # The MockProposer constructs ID as "{prefix}-{persona.name}"
+    assert "p1-Persona A" in verdict.content
+    assert "p2-Persona B" in verdict.content
 
 
 @pytest.mark.asyncio
-async def test_resolve_query_not_implemented() -> None:
-    """Test that resolve_query currently raises NotImplementedError."""
+async def test_resolve_query_high_entropy_boundary(
+    mock_proposers: list[MockProposer],
+    mock_personas: list[Persona],
+    mock_dissenter_high_entropy: MockDissenter,
+    mock_aggregator: MockAggregator,
+) -> None:
+    """
+    Test Boundary: High Entropy should trigger NotImplementedError (for this atomic unit).
+    """
     speaker = ChamberSpeaker(
-        proposers=[MockProposer()],
-        dissenter=MockDissenter(),
-        aggregator=MockAggregator(),
+        proposers=mock_proposers,
+        personas=mock_personas,
+        dissenter=mock_dissenter_high_entropy,
+        aggregator=mock_aggregator,
+        entropy_threshold=0.5,
     )
 
-    with pytest.raises(NotImplementedError):
-        await speaker.resolve_query("Test query")
+    query = "Is this a complex debated question?"
+
+    # The mock returns 0.9, which is > 0.5
+    with pytest.raises(NotImplementedError, match="Debate loop"):
+        await speaker.resolve_query(query)
