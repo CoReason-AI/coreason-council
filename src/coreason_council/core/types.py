@@ -10,8 +10,10 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional, Any, Annotated
+from typing import Annotated, Any, Optional
+
 from pydantic import BaseModel, Field
+
 
 class PersonaType(str, Enum):
     ONCOLOGIST = "oncologist"
@@ -24,27 +26,32 @@ class PersonaType(str, Enum):
     OPTIMIST = "optimist"
     GENERALIST = "generalist"
 
+
 class TopologyType(str, Enum):
     STAR = "star"
     CHAIN = "chain"
     MESH = "mesh"
     ROUND_TABLE = "round_table"
 
+
 class VoteOption(str, Enum):
     APPROVE = "approve"
     REJECT = "reject"
     ABSTAIN = "abstain"
+
 
 class Persona(BaseModel):
     name: str
     system_prompt: str
     capabilities: list[str] = Field(default_factory=list)
 
+
 class ProposerOutput(BaseModel):
     proposer_id: str
     content: str
     confidence: Annotated[float, Field(ge=0.0, le=1.0)]
     metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 class Critique(BaseModel):
     reviewer_id: str
@@ -53,11 +60,13 @@ class Critique(BaseModel):
     flaws_identified: list[str]
     agreement_score: Annotated[float, Field(ge=0.0, le=1.0)]
 
+
 class Verdict(BaseModel):
     content: str
     confidence_score: Annotated[float, Field(ge=0.0, le=1.0)]
     supporting_evidence: list[str] = Field(default_factory=list)
     dissenting_opinions: list[str] = Field(default_factory=list)
+
 
 class TranscriptEntry(BaseModel):
     actor: str
@@ -65,23 +74,20 @@ class TranscriptEntry(BaseModel):
     content: str
     timestamp: datetime
 
+
 class CouncilTrace(BaseModel):
     """
     Serializable log object for Council sessions (The "Glass Box").
     """
+
     session_id: str
-    roster: list[str] # List of persona names/ids
-    transcripts: list[TranscriptEntry] = Field(default_factory=list) # Chronological log of interactions
+    roster: list[str]  # List of persona names/ids
+    transcripts: list[TranscriptEntry] = Field(default_factory=list)  # Chronological log of interactions
     topology: TopologyType
     entropy_score: Optional[float] = None
     vote_tally: Optional[dict[str, int]] = None
     final_verdict: Optional[Verdict] = None
 
     def log_interaction(self, actor: str, action: str, content: str) -> None:
-        entry = TranscriptEntry(
-            actor=actor,
-            action=action,
-            content=content,
-            timestamp=datetime.now(timezone.utc)
-        )
+        entry = TranscriptEntry(actor=actor, action=action, content=content, timestamp=datetime.now(timezone.utc))
         self.transcripts.append(entry)
