@@ -72,6 +72,8 @@ async def test_mock_aggregator_aggregate(
     assert "Test Verdict" in verdict.content
     assert "prop-1" in verdict.content
     assert "prop-2" in verdict.content
+    # New check for critique inclusion
+    assert "critic-1" in verdict.content
     assert verdict.confidence_score == 0.8
     assert verdict.supporting_evidence == ["Evidence 1"]
     assert verdict.dissenting_opinions == ["Dissent 1"]
@@ -82,7 +84,8 @@ async def test_mock_aggregator_empty_inputs(mock_aggregator: MockAggregator) -> 
     verdict = await mock_aggregator.aggregate([], [])
 
     assert isinstance(verdict, Verdict)
-    assert verdict.content == "Test Verdict (Based on inputs from: )"
+    # Check proper formatting for empty lists
+    assert "Based on inputs from: ; Critiqued by: )" in verdict.content
     assert verdict.confidence_score == 0.8
 
 
@@ -94,3 +97,86 @@ async def test_mock_aggregator_delay() -> None:
     # and doesn't crash.
     verdict = await aggregator.aggregate([], [])
     assert isinstance(verdict, Verdict)
+
+
+@pytest.mark.asyncio
+async def test_aggregator_large_input_volume(mock_aggregator: MockAggregator) -> None:
+    """Test aggregation with a large number of proposals and critiques."""
+    proposals = [ProposerOutput(proposer_id=f"prop-{i}", content=f"Content {i}", confidence=0.9) for i in range(100)]
+    critiques = [
+        Critique(
+            reviewer_id=f"critic-{i}",
+            target_proposer_id=f"prop-{i}",
+            content=f"Critique {i}",
+            flaws_identified=[],
+            agreement_score=0.5,
+        )
+        for i in range(50)
+    ]
+
+    verdict = await mock_aggregator.aggregate(proposals, critiques)
+
+    assert isinstance(verdict, Verdict)
+    assert "prop-0" in verdict.content
+    assert "prop-99" in verdict.content
+    assert "critic-0" in verdict.content
+    assert "critic-49" in verdict.content
+
+
+@pytest.mark.asyncio
+async def test_aggregator_special_characters(mock_aggregator: MockAggregator) -> None:
+    """Test handling of IDs with special characters."""
+    special_proposals = [
+        ProposerOutput(
+            proposer_id="prop-@#$%^&*",
+            content="Special Chars",
+            confidence=0.9,
+        ),
+        ProposerOutput(
+            proposer_id="prop-🚀-emoji",
+            content="Emoji",
+            confidence=0.9,
+        ),
+    ]
+
+    special_critiques = [
+        Critique(
+            reviewer_id="critic-über-cool",
+            target_proposer_id="prop-@#$%^&*",
+            content="Unicode",
+            flaws_identified=[],
+            agreement_score=0.5,
+        )
+    ]
+
+    verdict = await mock_aggregator.aggregate(special_proposals, special_critiques)
+
+    assert "prop-@#$%^&*" in verdict.content
+    assert "prop-🚀-emoji" in verdict.content
+    assert "critic-über-cool" in verdict.content
+
+
+@pytest.mark.asyncio
+async def test_aggregator_complex_metadata(mock_aggregator: MockAggregator) -> None:
+    """Test proposals with complex, deeply nested metadata."""
+    complex_metadata = {
+        "source": "database",
+        "nested": {"level1": {"level2": [1, 2, 3]}},
+        "none_value": None,
+        "bool_value": True,
+    }
+
+    proposals = [
+        ProposerOutput(
+            proposer_id="prop-complex",
+            content="Content",
+            confidence=0.9,
+            metadata=complex_metadata,
+        )
+    ]
+
+    verdict = await mock_aggregator.aggregate(proposals, [])
+
+    # The aggregator doesn't use metadata in output, but we ensure it doesn't crash
+    assert "prop-complex" in verdict.content
+    assert verdict.confidence_score == 0.8

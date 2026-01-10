@@ -71,7 +71,8 @@ class MockAggregator(BaseAggregator):
 
         # Construct a mock content string that references inputs to show they were "processed"
         proposer_ids = ", ".join([p.proposer_id for p in proposals])
-        content = f"{self.default_content} (Based on inputs from: {proposer_ids})"
+        reviewer_ids = ", ".join([c.reviewer_id for c in critiques])
+        content = f"{self.default_content} (Based on inputs from: {proposer_ids}; Critiqued by: {reviewer_ids})"
 
         return Verdict(
             content=content,
