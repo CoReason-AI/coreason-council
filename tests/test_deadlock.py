@@ -70,10 +70,27 @@ async def test_deadlock_resolution(
 
     verdict, trace = await speaker.resolve_query("What is the meaning of life?")
 
-    # Verify Deadlock Verdict
+    # Verify Deadlock Verdict Content
     assert verdict is not None
     assert "MINORITY REPORT" in verdict.content
     assert "Deadlock detected" in verdict.content
+
+    # Verify Strict Deadlock Protocol (Structured Options)
+    assert verdict.alternatives, "Deadlock verdict must contain alternatives."
+    assert len(verdict.alternatives) == 2
+
+    # Check Option A
+    option_a = verdict.alternatives[0]
+    assert option_a.label == "Option A"
+    assert "p1-Alpha" in option_a.supporters  # Even index 0
+
+    # Check Option B
+    option_b = verdict.alternatives[1]
+    assert option_b.label == "Option B"
+    assert "p2-Beta" in option_b.supporters  # Odd index 1
+
+    # Verify Confidence is low
+    assert verdict.confidence_score <= 0.1
 
     # Trace Analysis:
     # Round 1: Critique + Revise
@@ -113,6 +130,7 @@ async def test_consensus_after_revision(
     verdict, trace = await speaker.resolve_query("Debate this.")
 
     assert "MINORITY REPORT" not in verdict.content
+    assert not verdict.alternatives  # Should be empty on consensus
 
     # Verify interactions
     revise_r1_count = sum(1 for i in trace.transcripts if i.action == "revise_round_1")
@@ -145,6 +163,7 @@ async def test_immediate_consensus(
     verdict, trace = await speaker.resolve_query("Simple question.")
 
     assert "MINORITY REPORT" not in verdict.content
+    assert not verdict.alternatives  # Should be empty on consensus
 
     # Verify no debate occurred
     critique_count = sum(1 for i in trace.transcripts if "critique" in i.action)
