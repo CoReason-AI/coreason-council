@@ -61,18 +61,11 @@ class Critique(BaseModel):
     agreement_score: Annotated[float, Field(ge=0.0, le=1.0)]
 
 
-class VerdictOption(BaseModel):
-    label: str
-    content: str
-    supporters: list[str] = Field(default_factory=list)
-
-
 class Verdict(BaseModel):
     content: str
     confidence_score: Annotated[float, Field(ge=0.0, le=1.0)]
     supporting_evidence: list[str] = Field(default_factory=list)
     dissenting_opinions: list[str] = Field(default_factory=list)
-    alternatives: list[VerdictOption] = Field(default_factory=list)
 
 
 class TranscriptEntry(BaseModel):
