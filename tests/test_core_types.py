@@ -14,7 +14,15 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from coreason_council.core.types import CouncilTrace, Critique, Persona, ProposerOutput, TopologyType, Verdict
+from coreason_council.core.types import (
+    CouncilTrace,
+    Critique,
+    Persona,
+    ProposerOutput,
+    TopologyType,
+    Verdict,
+    VerdictOption,
+)
 
 
 def test_council_trace_initialization() -> None:
@@ -77,6 +85,22 @@ def test_verdict_structure() -> None:
     )
     assert verdict.content == "Final Answer"
     assert verdict.confidence_score == 0.95
+    assert verdict.alternatives == []  # Default empty
+
+
+def test_verdict_with_alternatives() -> None:
+    option_a = VerdictOption(label="Option A", content="Do X", supporters=["p1"])
+    option_b = VerdictOption(label="Option B", content="Do Y", supporters=["p2"])
+
+    verdict = Verdict(
+        content="Split Decision",
+        confidence_score=0.1,
+        alternatives=[option_a, option_b],
+    )
+
+    assert len(verdict.alternatives) == 2
+    assert verdict.alternatives[0].label == "Option A"
+    assert verdict.alternatives[0].supporters == ["p1"]
 
 
 def test_persona_defaults() -> None:
