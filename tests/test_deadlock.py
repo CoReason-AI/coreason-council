@@ -106,6 +106,124 @@ async def test_deadlock_resolution(
 
 
 @pytest.mark.asyncio
+async def test_deadlock_odd_number_of_proposers(
+    mock_dissenter: MockDissenter,
+    mock_aggregator: MockAggregator,
+) -> None:
+    """
+    Edge Case 1: Deadlock with an odd number of proposers (3).
+    Verifies that the mock aggregator correctly splits the group.
+    """
+    mock_dissenter.default_entropy_score = 0.9
+    personas = [
+        Persona(name="A", system_prompt="A"),
+        Persona(name="B", system_prompt="B"),
+        Persona(name="C", system_prompt="C"),
+    ]
+    proposers = [MockProposer(proposer_id_prefix=f"p{i}") for i in range(3)]
+
+    speaker = ChamberSpeaker(
+        proposers=proposers,
+        personas=personas,
+        dissenter=mock_dissenter,
+        aggregator=mock_aggregator,
+        max_rounds=1,
+    )
+
+    verdict, _ = await speaker.resolve_query("Query")
+
+    assert verdict.alternatives
+    assert len(verdict.alternatives) == 2
+    # Even indices: 0, 2 (2 supporters)
+    assert len(verdict.alternatives[0].supporters) == 2
+    assert "p0-A" in verdict.alternatives[0].supporters
+    assert "p2-C" in verdict.alternatives[0].supporters
+    # Odd indices: 1 (1 supporter)
+    assert len(verdict.alternatives[1].supporters) == 1
+    assert "p1-B" in verdict.alternatives[1].supporters
+
+
+@pytest.mark.asyncio
+async def test_deadlock_verdict_serialization(
+    mock_personas: list[Persona],
+    mock_proposers: list[MockProposer],
+    mock_dissenter: MockDissenter,
+    mock_aggregator: MockAggregator,
+) -> None:
+    """
+    Edge Case 2: Serialization of Verdict with Alternatives.
+    Ensures that CouncilTrace can dump the structured deadlock verdict to JSON/dict.
+    """
+    mock_dissenter.default_entropy_score = 0.9
+    speaker = ChamberSpeaker(
+        proposers=mock_proposers,
+        personas=mock_personas,
+        dissenter=mock_dissenter,
+        aggregator=mock_aggregator,
+        max_rounds=1,
+    )
+
+    _, trace = await speaker.resolve_query("Query")
+
+    # Attempt to dump to dict (Pydantic v2)
+    trace_dict = trace.model_dump()
+    assert trace_dict["final_verdict"] is not None
+    assert trace_dict["final_verdict"]["alternatives"] is not None
+    assert len(trace_dict["final_verdict"]["alternatives"]) == 2
+    assert trace_dict["final_verdict"]["alternatives"][0]["label"] == "Option A"
+
+
+@pytest.mark.asyncio
+async def test_complex_long_running_deadlock(
+    mock_dissenter: MockDissenter,
+    mock_aggregator: MockAggregator,
+) -> None:
+    """
+    Complex Scenario: A long-running debate (5 rounds) with many proposers (4) that fails to reach consensus.
+    """
+    mock_dissenter.default_entropy_score = 0.9  # Persistent high entropy
+    personas = [Persona(name=f"P{i}", system_prompt="...") for i in range(4)]
+    proposers = [MockProposer(proposer_id_prefix=f"m{i}") for i in range(4)]
+
+    speaker = ChamberSpeaker(
+        proposers=proposers,
+        personas=personas,
+        dissenter=mock_dissenter,
+        aggregator=mock_aggregator,
+        max_rounds=5,
+    )
+
+    verdict, trace = await speaker.resolve_query("Hard Query")
+
+    # Verify Deadlock
+    assert "MINORITY REPORT" in verdict.content
+    assert len(verdict.alternatives) == 2
+    assert len(verdict.alternatives[0].supporters) == 2  # 4 split into 2 vs 2
+
+    # Verify rounds
+    # Should have 4 critiques (Round 1 to 4) and 4 revisions (Round 1 to 4)
+    # Round 5 starts, sees high entropy, checks max_rounds (>=5), and breaks.
+    # So max_rounds=5 means we stop AT round 5 start, meaning 4 previous rounds completed?
+    # Logic:
+    # Round 1 start.
+    # Check entropy. High.
+    # Check current_round (1) >= max (5)? False.
+    # Critique Round 1. Revise Round 1.
+    # Round 2 start...
+    # ...
+    # Round 4 Critique/Revise.
+    # Round 5 start.
+    # Check entropy. High.
+    # Check current_round (5) >= max (5)? True -> Break.
+    # So we expect 4 sets of critique/revise actions.
+
+    revise_r4_count = sum(1 for i in trace.transcripts if i.action == "revise_round_4")
+    assert revise_r4_count == 4  # 4 proposers
+    revise_r5_count = sum(1 for i in trace.transcripts if i.action == "revise_round_5")
+    assert revise_r5_count == 0
+
+
+@pytest.mark.asyncio
 async def test_consensus_after_revision(
     mock_personas: list[Persona],
     mock_proposers: list[MockProposer],
