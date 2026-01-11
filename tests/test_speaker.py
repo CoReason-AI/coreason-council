@@ -14,7 +14,7 @@ from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.dissenter import MockDissenter
 from coreason_council.core.proposer import MockProposer
 from coreason_council.core.speaker import ChamberSpeaker
-from coreason_council.core.types import CouncilTrace, Persona, Verdict
+from coreason_council.core.types import CouncilTrace, Persona, TopologyType, Verdict
 
 
 @pytest.fixture
@@ -134,6 +134,7 @@ async def test_resolve_query_low_entropy_flow(
     assert trace.roster == ["Persona A", "Persona B"]
     assert trace.entropy_score == 0.0
     assert trace.final_verdict == verdict
+    assert trace.topology == TopologyType.STAR
 
     # Verify transcripts (Propose A, Propose B, Verdict)
     actions = [entry.action for entry in trace.transcripts]
@@ -150,14 +151,15 @@ async def test_resolve_query_low_entropy_flow(
 
 
 @pytest.mark.asyncio
-async def test_resolve_query_high_entropy_boundary(
+async def test_resolve_query_high_entropy_flow(
     mock_proposers: list[MockProposer],
     mock_personas: list[Persona],
     mock_dissenter_high_entropy: MockDissenter,
     mock_aggregator: MockAggregator,
 ) -> None:
     """
-    Test Boundary: High Entropy should trigger NotImplementedError (for this atomic unit).
+    Test Story B: High Cost / High Entropy Flow.
+    Should trigger peer critiques before aggregation.
     """
     speaker = ChamberSpeaker(
         proposers=mock_proposers,
@@ -170,5 +172,30 @@ async def test_resolve_query_high_entropy_boundary(
     query = "Is this a complex debated question?"
 
     # The mock returns 0.9, which is > 0.5
-    with pytest.raises(NotImplementedError, match="Debate loop"):
-        await speaker.resolve_query(query)
+    verdict, trace = await speaker.resolve_query(query)
+
+    # 1. Verify Topology Change
+    assert trace.topology == TopologyType.ROUND_TABLE
+    assert trace.entropy_score == 0.9
+
+    # 2. Verify Transcripts include critiques
+    actions = [entry.action for entry in trace.transcripts]
+    assert actions.count("propose") == 2
+
+    # 2 Proposers. A critiques B, B critiques A. Total 2 critiques.
+    assert actions.count("critique") == 2
+    assert "verdict" in actions
+
+    # 3. Verify Critique Content
+    # Find critique entries
+    critique_entries = [e for e in trace.transcripts if e.action == "critique"]
+    actors = {e.actor for e in critique_entries}
+    assert "Persona A" in actors
+    assert "Persona B" in actors
+
+    # 4. Verify Aggregator received critiques
+    # The MockAggregator logs reviewer IDs in the verdict content
+    assert (
+        "Critiqued by: Persona A, Persona B" in verdict.content
+        or "Critiqued by: Persona B, Persona A" in verdict.content
+    )

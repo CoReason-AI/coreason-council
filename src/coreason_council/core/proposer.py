@@ -11,7 +11,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 
-from coreason_council.core.types import Persona, ProposerOutput
+from coreason_council.core.types import Critique, Persona, ProposerOutput
 from coreason_council.utils.logger import logger
 
 
@@ -32,6 +32,20 @@ class BaseProposer(ABC):
 
         Returns:
             ProposerOutput containing the response and confidence score.
+        """
+        pass  # pragma: no cover
+
+    @abstractmethod
+    async def critique_proposal(self, target_proposal: ProposerOutput, persona: Persona) -> Critique:
+        """
+        Generates a critique of a target proposal using the specified persona.
+
+        Args:
+            target_proposal: The proposal to critique.
+            persona: The persona (system prompt/role) to adopt for the critique.
+
+        Returns:
+            Critique object containing the critique content and flaws.
         """
         pass  # pragma: no cover
 
@@ -72,4 +86,26 @@ class MockProposer(BaseProposer):
             content=content,
             confidence=self.return_confidence,
             metadata={"mock": True, "persona_capabilities": persona.capabilities},
+        )
+
+    async def critique_proposal(self, target_proposal: ProposerOutput, persona: Persona) -> Critique:
+        logger.info(f"MockProposer critiquing proposal '{target_proposal.proposer_id}' as '{persona.name}'")
+
+        if self.delay_seconds > 0:
+            await asyncio.sleep(self.delay_seconds)
+
+        if self.failure_exception:
+            raise self.failure_exception
+
+        content = (
+            f"Critique by {persona.name}: The proposal '{target_proposal.content}' has some issues. "
+            f"(Target: {target_proposal.proposer_id})"
+        )
+
+        return Critique(
+            reviewer_id=persona.name,
+            target_proposer_id=target_proposal.proposer_id,
+            content=content,
+            flaws_identified=["Mock Flaw 1", "Mock Flaw 2"],
+            agreement_score=0.5,
         )
