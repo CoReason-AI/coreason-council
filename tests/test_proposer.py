@@ -13,7 +13,7 @@ import asyncio
 import pytest
 
 from coreason_council.core.proposer import MockProposer
-from coreason_council.core.types import Persona, ProposerOutput
+from coreason_council.core.types import Critique, Persona, ProposerOutput
 
 
 @pytest.fixture
@@ -142,3 +142,59 @@ async def test_mock_proposer_edge_inputs(mock_persona: Persona) -> None:
     large_query = "A" * 10000
     res_large = await proposer.propose(large_query, mock_persona)
     assert len(res_large.content) > 10000
+
+
+@pytest.mark.asyncio
+async def test_mock_proposer_critique_proposal(mock_persona: Persona) -> None:
+    """Test the critique_proposal method."""
+    proposer = MockProposer()
+    target_proposal = ProposerOutput(
+        proposer_id="target-p1",
+        content="Target Content",
+        confidence=0.9,
+    )
+
+    critique = await proposer.critique_proposal(target_proposal, mock_persona)
+
+    assert isinstance(critique, Critique)
+    assert critique.reviewer_id == mock_persona.name
+    assert critique.target_proposer_id == "target-p1"
+    assert "Target Content" in critique.content
+    assert critique.flaws_identified == ["Mock Flaw 1", "Mock Flaw 2"]
+
+
+@pytest.mark.asyncio
+async def test_mock_proposer_critique_delay(mock_persona: Persona) -> None:
+    """Test the delay functionality in critique_proposal."""
+    import time
+
+    delay = 0.1
+    proposer = MockProposer(delay_seconds=delay)
+
+    target_proposal = ProposerOutput(
+        proposer_id="target-p1",
+        content="Target Content",
+        confidence=0.9,
+    )
+
+    start_time = time.time()
+    await proposer.critique_proposal(target_proposal, mock_persona)
+    end_time = time.time()
+
+    assert (end_time - start_time) >= delay
+
+
+@pytest.mark.asyncio
+async def test_mock_proposer_critique_failure(mock_persona: Persona) -> None:
+    """Test the failure functionality in critique_proposal."""
+    failure_msg = "Critique Failed"
+    proposer = MockProposer(failure_exception=RuntimeError(failure_msg))
+
+    target_proposal = ProposerOutput(
+        proposer_id="target-p1",
+        content="Target Content",
+        confidence=0.9,
+    )
+
+    with pytest.raises(RuntimeError, match=failure_msg):
+        await proposer.critique_proposal(target_proposal, mock_persona)
