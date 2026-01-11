@@ -58,7 +58,8 @@ async def test_resolve_query_high_entropy_single_proposer(
     assert trace.topology == TopologyType.STAR
 
     # Verify NO critiques generated
-    critique_actions = [e for e in trace.transcripts if e.action == "critique"]
+    # Check for any action starting with "critique"
+    critique_actions = [e for e in trace.transcripts if "critique" in e.action]
     assert len(critique_actions) == 0
 
     # Verify Verdict exists
@@ -127,7 +128,7 @@ async def test_resolve_query_many_proposers_critique_count(
 
     _, trace = await speaker.resolve_query("Big meeting")
 
-    critique_actions = [e for e in trace.transcripts if e.action == "critique"]
+    critique_actions = [e for e in trace.transcripts if e.action == "critique_round_1"]
     expected_critiques = count * (count - 1)
 
     assert len(critique_actions) == expected_critiques
