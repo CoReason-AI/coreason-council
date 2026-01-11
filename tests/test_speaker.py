@@ -171,24 +171,32 @@ async def test_resolve_query_high_entropy_flow(
 
     query = "Is this a complex debated question?"
 
-    # The mock returns 0.9, which is > 0.5
+    from unittest.mock import AsyncMock
+
+    # Configure Dissenter to return High Entropy (0.9) first, then Low Entropy (0.05)
+    # This simulates a debate that resolves into consensus (Story B)
+    mock_dissenter_high_entropy.calculate_entropy = AsyncMock(side_effect=[0.9, 0.05])  # type: ignore
+
     verdict, trace = await speaker.resolve_query(query)
 
     # 1. Verify Topology Change
     assert trace.topology == TopologyType.ROUND_TABLE
-    assert trace.entropy_score == 0.9
+    # The final score logged in trace should be the last one calculated (0.05)
+    assert trace.entropy_score == 0.05
 
-    # 2. Verify Transcripts include critiques
+    # 2. Verify Transcripts include critiques and revisions
     actions = [entry.action for entry in trace.transcripts]
     assert actions.count("propose") == 2
 
-    # 2 Proposers. A critiques B, B critiques A. Total 2 critiques.
-    assert actions.count("critique") == 2
+    # Round 1 happened (High Entropy)
+    assert actions.count("critique_round_1") == 2
+    assert actions.count("revise_round_1") == 2
+
     assert "verdict" in actions
 
     # 3. Verify Critique Content
     # Find critique entries
-    critique_entries = [e for e in trace.transcripts if e.action == "critique"]
+    critique_entries = [e for e in trace.transcripts if e.action == "critique_round_1"]
     actors = {e.actor for e in critique_entries}
     assert "Persona A" in actors
     assert "Persona B" in actors

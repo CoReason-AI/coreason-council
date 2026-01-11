@@ -33,6 +33,7 @@ class ChamberSpeaker:
         dissenter: BaseDissenter,
         aggregator: BaseAggregator,
         entropy_threshold: float = 0.1,
+        max_rounds: int = 3,
     ) -> None:
         """
         Initializes the Chamber Speaker with the necessary components.
@@ -43,6 +44,7 @@ class ChamberSpeaker:
             dissenter: The Dissenter instance (The Critic).
             aggregator: The Aggregator instance (The Judge).
             entropy_threshold: The threshold below which consensus is accepted immediately.
+            max_rounds: The maximum number of debate rounds before triggering a deadlock.
         """
         if not proposers:
             raise ValueError("The Council requires at least one Proposer.")
@@ -68,24 +70,27 @@ class ChamberSpeaker:
         self.dissenter = dissenter
         self.aggregator = aggregator
         self.entropy_threshold = entropy_threshold
+        self.max_rounds = max_rounds
 
         logger.info(
-            f"ChamberSpeaker initialized with {len(self.proposers)} proposers "
-            f"and entropy threshold {self.entropy_threshold}."
+            f"ChamberSpeaker initialized with {len(self.proposers)} proposers, "
+            f"entropy threshold {self.entropy_threshold}, and max rounds {self.max_rounds}."
         )
 
-    async def resolve_query(self, query: str) -> tuple[Verdict, CouncilTrace]:
+    async def resolve_query(self, query: str, max_rounds: int | None = None) -> tuple[Verdict, CouncilTrace]:
         """
         Orchestrates the resolution of a query through the Council.
 
         Args:
             query: The input question or problem statement.
+            max_rounds: Optional override for the maximum number of debate rounds.
 
         Returns:
             A tuple containing the final Verdict and the full CouncilTrace.
         """
         session_id = str(uuid.uuid4())
         roster_names = [p.name for p in self.personas]
+        current_max_rounds = max_rounds if max_rounds is not None else self.max_rounds
 
         trace = CouncilTrace(
             session_id=session_id,
@@ -95,7 +100,7 @@ class ChamberSpeaker:
 
         logger.info(f"Session {session_id}: Speaker received query: '{query}'")
 
-        # --- Phase 1: Proposals (Parallel Isolation) ---
+        # --- Phase 1: Initial Proposals (Parallel Isolation) ---
         logger.debug(f"Session {session_id}: Requesting proposals from {len(self.proposers)} agents.")
 
         # Prepare tasks
@@ -114,44 +119,83 @@ class ChamberSpeaker:
                 content=proposal.content,
             )
 
-        # --- Phase 2: Entropy Check ---
-        entropy = await self.dissenter.calculate_entropy(proposals)
-        trace.entropy_score = entropy
-        logger.info(f"Session {session_id}: Calculated entropy score: {entropy}")
-
-        # --- Phase 3: Decision & Aggregation ---
+        # Loop variables
+        current_round = 1
         critiques: list[Critique] = []
+        is_deadlock = False
 
-        if entropy <= self.entropy_threshold:
-            logger.info(f"Session {session_id}: Low entropy detected. Proceeding to immediate aggregation.")
-        else:
+        # --- Phase 2: Divergence-Convergence Loop ---
+        while True:
+            # Check Entropy
+            entropy = await self.dissenter.calculate_entropy(proposals)
+            trace.entropy_score = entropy  # Update trace with latest entropy
+            logger.info(f"Session {session_id} (Round {current_round}): Calculated entropy score: {entropy}")
+
+            if entropy <= self.entropy_threshold:
+                logger.info(
+                    f"Session {session_id}: Low entropy ({entropy} <= {self.entropy_threshold}) detected. "
+                    "Consensus reached."
+                )
+                break
+
+            if current_round >= current_max_rounds:
+                logger.warning(
+                    f"Session {session_id}: Max rounds ({current_max_rounds}) reached with high entropy "
+                    f"({entropy} > {self.entropy_threshold}). Declaring Deadlock."
+                )
+                is_deadlock = True
+                break
+
             logger.warning(
                 f"Session {session_id}: High entropy ({entropy} > {self.entropy_threshold}) detected. "
-                "Initiating Peer Critique Round."
+                f"Initiating Round {current_round} Peer Critique."
             )
-            # Switch topology log to indicate debate occurred
-            trace.topology = TopologyType.ROUND_TABLE
+            trace.topology = TopologyType.ROUND_TABLE  # Switch topology log
 
-            # Peer Critique Logic: Everyone critiques everyone else
+            # 1. Peer Critique Logic: Everyone critiques everyone else
             critique_tasks = []
             for i, (_proposer_target, proposal) in enumerate(zip(self.proposers, proposals, strict=True)):
                 for j, (proposer_critic, persona_critic) in enumerate(zip(self.proposers, self.personas, strict=True)):
                     if i == j:
                         continue  # Do not critique self
 
-                    # Create task for Proposer J to critique Proposal I
                     critique_tasks.append(proposer_critic.critique_proposal(proposal, persona_critic))
 
-            if critique_tasks:
-                logger.debug(f"Session {session_id}: Launching {len(critique_tasks)} critique tasks.")
-                critiques = await asyncio.gather(*critique_tasks)
+            # Store critiques for this round (clearing previous ones as we want fresh context,
+            # or we could accumulate them. The prompt implies revising based on critiques.
+            # Usually we want the Aggregator to see the *final* state or latest relevant critiques.
+            # We'll refresh the critiques list for the current round.)
+            critiques = await asyncio.gather(*critique_tasks)
 
-                # Log critiques
-                for c in critiques:
-                    trace.log_interaction(actor=c.reviewer_id, action="critique", content=c.content)
+            # Log critiques
+            for c in critiques:
+                trace.log_interaction(actor=c.reviewer_id, action=f"critique_round_{current_round}", content=c.content)
 
-        # Final Aggregation (happens for both Low and High entropy now)
-        verdict = await self.aggregator.aggregate(proposals, critiques=critiques)
+            # 2. Proposal Revision Logic
+            revision_tasks = []
+            # Map critiques to their target proposers to pass relevant feedback
+            # critiques structure: [Critique(reviewer=B, target=A), Critique(reviewer=C, target=A), ...]
+            for proposer, proposal, persona in zip(self.proposers, proposals, self.personas, strict=True):
+                # Filter critiques targeting this proposer
+                my_critiques = [c for c in critiques if c.target_proposer_id == proposal.proposer_id]
+                revision_tasks.append(proposer.revise_proposal(proposal, my_critiques, persona))
+
+            proposals = await asyncio.gather(*revision_tasks)
+
+            # Log revisions
+            for proposal, persona in zip(proposals, self.personas, strict=True):
+                trace.log_interaction(
+                    actor=persona.name,
+                    action=f"revise_round_{current_round}",
+                    content=proposal.content,
+                )
+
+            current_round += 1
+
+        # --- Phase 3: Final Aggregation ---
+        # We pass the final set of proposals and the latest set of critiques (if any exist)
+        # If we broke early due to low entropy, critiques might be empty (Story A).
+        verdict = await self.aggregator.aggregate(proposals, critiques=critiques, is_deadlock=is_deadlock)
         trace.final_verdict = verdict
         trace.log_interaction(
             actor="Aggregator",
