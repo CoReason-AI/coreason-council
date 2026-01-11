@@ -8,8 +8,15 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
+import pytest
+
 from coreason_council.main import hello_world
 
 
-def test_hello_world() -> None:
-    assert hello_world() == "Hello World!"
+def test_hello_world_runs() -> None:
+    """Simple test to verify hello_world entry point runs."""
+    try:
+        result = hello_world()
+        assert result == "Hello World!"
+    except Exception as e:
+        pytest.fail(f"hello_world() raised {e}")
