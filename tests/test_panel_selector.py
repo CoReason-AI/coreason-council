@@ -8,6 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
+import pytest
+
 from coreason_council.core.panel_selector import PanelSelector
 from coreason_council.core.proposer import MockProposer
 from coreason_council.core.types import PersonaType
@@ -89,3 +91,64 @@ def test_custom_proposer_factory() -> None:
     assert isinstance(proposers[0], CustomProposer)
     # Check that the factory was used correctly
     assert "custom-" in proposers[0].proposer_id_prefix
+
+
+def test_edge_case_empty_query() -> None:
+    """Test that an empty query falls back to the General Panel."""
+    selector = PanelSelector()
+    query = ""
+    _, personas = selector.select_panel(query)
+
+    names = [p.name for p in personas]
+    assert "Generalist" in names
+
+
+def test_edge_case_whitespace_query() -> None:
+    """Test that a whitespace-only query falls back to the General Panel."""
+    selector = PanelSelector()
+    query = "   \n  "
+    _, personas = selector.select_panel(query)
+
+    names = [p.name for p in personas]
+    assert "Generalist" in names
+
+
+def test_edge_case_ambiguous_query_priority() -> None:
+    """
+    Test that when keywords from multiple domains appear, priority is respected.
+    Implementation priority: Medical > Code > General.
+    Query: "Write python code to analyze cancer data."
+    Expected: Medical Panel (because 'cancer' triggers medical).
+    """
+    selector = PanelSelector()
+    query = "Write python code to analyze cancer data."
+    _, personas = selector.select_panel(query)
+
+    names = [p.name for p in personas]
+    assert "Oncologist" in names
+    # Verify we did NOT get Code panel
+    assert "Architect" not in names
+
+
+def test_edge_case_case_insensitivity_and_punctuation() -> None:
+    """Test that matching handles mixed case and punctuation."""
+    selector = PanelSelector()
+    # "DRUG" is mixed case, "patient!" has punctuation
+    query = "Is this DRUG safe for the patient!?"
+    _, personas = selector.select_panel(query)
+
+    names = [p.name for p in personas]
+    assert "Oncologist" in names
+
+
+def test_edge_case_factory_exception() -> None:
+    """Test that exceptions in the factory are propagated."""
+
+    def broken_factory(persona: object) -> MockProposer:
+        raise ValueError("Factory failed")
+
+    selector = PanelSelector(proposer_factory=broken_factory)
+    query = "simple query"
+
+    with pytest.raises(ValueError, match="Factory failed"):
+        selector.select_panel(query)
