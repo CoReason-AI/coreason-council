@@ -118,7 +118,9 @@ async def test_aggregator_failure(mock_personas_3: list[Persona], mock_dissenter
     """
 
     class FailingAggregator(MockAggregator):
-        async def aggregate(self, proposals: list[ProposerOutput], critiques: list[Critique]) -> Verdict:
+        async def aggregate(
+            self, proposals: list[ProposerOutput], critiques: list[Critique], is_deadlock: bool = False
+        ) -> Verdict:
             raise RuntimeError("Aggregator Crashed")
 
     proposers = [
