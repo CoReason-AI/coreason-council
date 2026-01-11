@@ -11,7 +11,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 
-from coreason_council.core.types import Critique, ProposerOutput, Verdict
+from coreason_council.core.types import Critique, ProposerOutput, Verdict, VerdictOption
 from coreason_council.utils.logger import logger
 
 
@@ -76,17 +76,42 @@ class MockAggregator(BaseAggregator):
         proposer_ids = ", ".join([p.proposer_id for p in proposals])
         reviewer_ids = ", ".join([c.reviewer_id for c in critiques])
 
+        alternatives = []
+        confidence = self.default_confidence
+
         if is_deadlock:
             content = (
                 f"MINORITY REPORT: Deadlock detected. {self.default_content} "
                 f"(Options based on: {proposer_ids}; Critiques: {reviewer_ids})"
             )
+            confidence = 0.1  # Low confidence on deadlock
+
+            # Split proposals into Option A and Option B for the mock
+            supporters_a = [p.proposer_id for i, p in enumerate(proposals) if i % 2 == 0]
+            supporters_b = [p.proposer_id for i, p in enumerate(proposals) if i % 2 != 0]
+
+            alternatives.append(
+                VerdictOption(
+                    label="Option A",
+                    content="Alternative A derived from even indexed proposers.",
+                    supporters=supporters_a,
+                )
+            )
+            alternatives.append(
+                VerdictOption(
+                    label="Option B",
+                    content="Alternative B derived from odd indexed proposers.",
+                    supporters=supporters_b,
+                )
+            )
+
         else:
             content = f"{self.default_content} (Based on inputs from: {proposer_ids}; Critiqued by: {reviewer_ids})"
 
         return Verdict(
             content=content,
-            confidence_score=self.default_confidence,
+            confidence_score=confidence,
             supporting_evidence=self.default_supporting_evidence,
             dissenting_opinions=self.default_dissenting_opinions,
+            alternatives=alternatives,
         )
