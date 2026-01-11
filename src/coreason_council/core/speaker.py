@@ -15,7 +15,7 @@ from typing import Sequence
 from coreason_council.core.aggregator import BaseAggregator
 from coreason_council.core.dissenter import BaseDissenter
 from coreason_council.core.proposer import BaseProposer
-from coreason_council.core.types import CouncilTrace, Persona, TopologyType, Verdict
+from coreason_council.core.types import CouncilTrace, Critique, Persona, TopologyType, Verdict
 from coreason_council.utils.logger import logger
 
 
@@ -120,22 +120,42 @@ class ChamberSpeaker:
         logger.info(f"Session {session_id}: Calculated entropy score: {entropy}")
 
         # --- Phase 3: Decision & Aggregation ---
+        critiques: list[Critique] = []
+
         if entropy <= self.entropy_threshold:
             logger.info(f"Session {session_id}: Low entropy detected. Proceeding to immediate aggregation.")
-            verdict = await self.aggregator.aggregate(proposals, critiques=[])
-            trace.final_verdict = verdict
-            trace.log_interaction(
-                actor="Aggregator",
-                action="verdict",
-                content=verdict.content,
-            )
-            return verdict, trace
-
         else:
             logger.warning(
                 f"Session {session_id}: High entropy ({entropy} > {self.entropy_threshold}) detected. "
-                "Debate logic is required but not implemented."
+                "Initiating Peer Critique Round."
             )
-            # Strictly adhering to the "One Step" rule: We only implement the Low Cost flow.
-            # The High Cost flow (Story B) is a separate atomic unit.
-            raise NotImplementedError("Debate loop (High Entropy) not yet implemented.")
+            # Switch topology log to indicate debate occurred
+            trace.topology = TopologyType.ROUND_TABLE
+
+            # Peer Critique Logic: Everyone critiques everyone else
+            critique_tasks = []
+            for i, (_proposer_target, proposal) in enumerate(zip(self.proposers, proposals, strict=True)):
+                for j, (proposer_critic, persona_critic) in enumerate(zip(self.proposers, self.personas, strict=True)):
+                    if i == j:
+                        continue  # Do not critique self
+
+                    # Create task for Proposer J to critique Proposal I
+                    critique_tasks.append(proposer_critic.critique_proposal(proposal, persona_critic))
+
+            if critique_tasks:
+                logger.debug(f"Session {session_id}: Launching {len(critique_tasks)} critique tasks.")
+                critiques = await asyncio.gather(*critique_tasks)
+
+                # Log critiques
+                for c in critiques:
+                    trace.log_interaction(actor=c.reviewer_id, action="critique", content=c.content)
+
+        # Final Aggregation (happens for both Low and High entropy now)
+        verdict = await self.aggregator.aggregate(proposals, critiques=critiques)
+        trace.final_verdict = verdict
+        trace.log_interaction(
+            actor="Aggregator",
+            action="verdict",
+            content=verdict.content,
+        )
+        return verdict, trace
