@@ -182,3 +182,19 @@ async def test_mock_proposer_critique_delay(mock_persona: Persona) -> None:
     end_time = time.time()
 
     assert (end_time - start_time) >= delay
+
+
+@pytest.mark.asyncio
+async def test_mock_proposer_critique_failure(mock_persona: Persona) -> None:
+    """Test the failure functionality in critique_proposal."""
+    failure_msg = "Critique Failed"
+    proposer = MockProposer(failure_exception=RuntimeError(failure_msg))
+
+    target_proposal = ProposerOutput(
+        proposer_id="target-p1",
+        content="Target Content",
+        confidence=0.9,
+    )
+
+    with pytest.raises(RuntimeError, match=failure_msg):
+        await proposer.critique_proposal(target_proposal, mock_persona)

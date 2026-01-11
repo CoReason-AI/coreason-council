@@ -94,6 +94,9 @@ class MockProposer(BaseProposer):
         if self.delay_seconds > 0:
             await asyncio.sleep(self.delay_seconds)
 
+        if self.failure_exception:
+            raise self.failure_exception
+
         content = (
             f"Critique by {persona.name}: The proposal '{target_proposal.content}' has some issues. "
             f"(Target: {target_proposal.proposer_id})"
