@@ -75,6 +75,14 @@ async def test_deadlock_resolution(
     assert "MINORITY REPORT" in verdict.content
     assert "Deadlock detected" in verdict.content
 
+    # Verify Minority Report Alternatives
+    assert verdict.confidence_score == 0.1
+    assert len(verdict.alternatives) == 2
+    assert verdict.alternatives[0].label == "Option A"
+    assert verdict.alternatives[1].label == "Option B"
+    assert "p1-Alpha" in verdict.alternatives[0].supporters
+    assert "p2-Beta" in verdict.alternatives[1].supporters
+
     # Trace Analysis:
     # Round 1: Critique + Revise
     # Round 2: Reached Max Round -> Deadlock (No Critique/Revise for Round 2)
