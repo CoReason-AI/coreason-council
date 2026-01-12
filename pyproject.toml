@@ -24,6 +24,9 @@ pydantic = "^2.12.5"
 pytest-asyncio = "0.24.0"
 mypy = "^1.19.1"
 
+[tool.poetry.scripts]
+council = "coreason_council.main:run_council"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

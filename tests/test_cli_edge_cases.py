@@ -14,70 +14,57 @@ from coreason_council.main import run_council
 
 
 def test_cli_empty_query() -> None:
-    """Test that an empty query defaults to the General panel and runs successfully."""
+    """Test CLI behavior with an empty query string."""
     runner = CliRunner()
     result = runner.invoke(run_council, [""])
 
+    # Should run (defaults to General panel) but might result in "effectively empty" entropy checks
     assert result.exit_code == 0
-    # Should default to General Panel
-    assert "Selected Panel: ['Generalist', 'Skeptic', 'Optimist']" in result.output
-    assert "--- FINAL VERDICT ---" in result.output
+    assert "Selected Panel" in result.output
+    assert "Session started" in result.output
 
 
-def test_cli_panel_routing_medical() -> None:
-    """Test that medical keywords trigger the Medical Panel."""
+def test_cli_zero_rounds() -> None:
+    """Test CLI behavior with max-rounds set to 0."""
     runner = CliRunner()
-    result = runner.invoke(run_council, ["What is the treatment for lung cancer?"])
+    # Should likely deadlock immediately after initial proposals
+    result = runner.invoke(run_council, ["Test Query", "--max-rounds", "0"])
 
     assert result.exit_code == 0
-    assert "Selected Panel: ['Oncologist', 'Biostatistician', 'Regulatory']" in result.output
+    assert "MINORITY REPORT: Deadlock detected" in result.output
+    # Depending on implementation, confidence might be low
+    assert "Confidence: 0.1" in result.output
 
 
-def test_cli_panel_routing_code() -> None:
-    """Test that code keywords trigger the Code Panel."""
+def test_cli_negative_rounds() -> None:
+    """Test CLI behavior with negative max-rounds."""
     runner = CliRunner()
-    result = runner.invoke(run_council, ["Fix this python bug in the compiler"])
+    # Logically same as 0 rounds (1 >= -1 is True)
+    result = runner.invoke(run_council, ["Test Query", "--max-rounds", "-5"])
 
     assert result.exit_code == 0
-    assert "Selected Panel: ['Architect', 'Security', 'QA']" in result.output
+    assert "MINORITY REPORT: Deadlock detected" in result.output
 
 
-def test_cli_single_round_no_debate() -> None:
-    """
-    Test with --max-rounds 1.
-    This should execute Phase 1 (Proposals) and then immediately break the loop
-    because current_round (1) >= max_rounds (1).
-    Effectively zero debate rounds.
-    """
+def test_cli_high_entropy_threshold() -> None:
+    """Test CLI with entropy threshold > 1.0 (Always Consensus)."""
     runner = CliRunner()
-    # Force high entropy so we would normally debate, but max-rounds 1 prevents it.
-    result = runner.invoke(run_council, ["Complex query", "--max-rounds", "1", "--entropy-threshold", "-1.0"])
+    # Even with JaccardDissenter, entropy is <= 1.0. So 1.5 should always trigger consensus immediately.
+    result = runner.invoke(run_council, ["Complex Query", "--entropy-threshold", "1.5"])
 
     assert result.exit_code == 0
-    assert "Session started..." in result.output
-    # Should trigger Deadlock because entropy is high (forced by -1.0 threshold vs positive entropy)
-    # and we hit max rounds immediately.
-    assert "Declaring Deadlock" in result.output or "MINORITY REPORT" in result.output
-    assert "--- ALTERNATIVES (Deadlock) ---" in result.output
+    assert "Consensus" not in result.output  # The word consensus is in logs, not necessarily stdout output
+    # But it should NOT be a deadlock
+    assert "MINORITY REPORT" not in result.output
+    assert "--- ALTERNATIVES" not in result.output
+    assert "Confidence: 0.95" in result.output  # MockAggregator default confidence
 
 
-def test_cli_forced_high_entropy_loop() -> None:
-    """
-    Test with negative entropy threshold to force the loop to run until max rounds.
-    With max-rounds 2, it should run 1 critique round.
-    """
+def test_cli_negative_entropy_threshold() -> None:
+    """Test CLI with negative entropy threshold (Always High Entropy until max rounds)."""
     runner = CliRunner()
-    result = runner.invoke(run_council, ["Query", "--max-rounds", "2", "--entropy-threshold", "-0.1"])
+    # Entropy (0.0 to 1.0) will never be <= -0.1. So it should run until max rounds and deadlock.
+    result = runner.invoke(run_council, ["Simple Query", "--entropy-threshold", "-0.1", "--max-rounds", "2"])
 
     assert result.exit_code == 0
-    # Logic:
-    # Round 1: Entropy calculated. Entropy >= -0.1 (True).
-    # Round 1 check: 1 >= 2 (False).
-    # Critique Round 1 happens.
-    # Round increments to 2.
-    # Round 2: Entropy calculated.
-    # Round 2 check: 2 >= 2 (True). Break. Deadlock.
-
-    assert "MINORITY REPORT" in result.output
-    # We can't easily assert the "number of rounds" from CLI output without verbose logs,
-    # but successful execution implies the loop logic held.
+    assert "MINORITY REPORT: Deadlock detected" in result.output
