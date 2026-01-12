@@ -8,15 +8,32 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
-import pytest
+from click.testing import CliRunner
 
-from coreason_council.main import hello_world
+from coreason_council.main import run_council
 
 
-def test_hello_world_runs() -> None:
-    """Simple test to verify hello_world entry point runs."""
-    try:
-        result = hello_world()
-        assert result == "Hello World!"
-    except Exception as e:
-        pytest.fail(f"hello_world() raised {e}")
+def test_run_council_cli_basic() -> None:
+    """Test the basic CLI execution with a simple query."""
+    runner = CliRunner()
+    # Use a high entropy threshold to ensure immediate consensus (Story A)
+    # This guarantees the 'Mock Verdict' output without deadlock
+    result = runner.invoke(run_council, ["Is 50mg of Aspirin safe?", "--entropy-threshold", "1.0"])
+
+    assert result.exit_code == 0
+    assert "Selected Panel" in result.output
+    assert "Session started..." in result.output
+    assert "--- FINAL VERDICT ---" in result.output
+    assert "Content: Mock Verdict" in result.output
+
+
+def test_run_council_cli_deadlock() -> None:
+    """Test the CLI execution triggering deadlock."""
+    runner = CliRunner()
+    # Use strict entropy threshold to force deadlock with mocks
+    result = runner.invoke(run_council, ["Complex query", "--max-rounds", "1", "--entropy-threshold", "0.0"])
+
+    assert result.exit_code == 0
+    assert "--- FINAL VERDICT ---" in result.output
+    assert "MINORITY REPORT: Deadlock detected" in result.output
+    assert "--- ALTERNATIVES (Deadlock) ---" in result.output
