@@ -66,6 +66,15 @@ async def test_jaccard_similarity_partial(jaccard_dissenter):
 
 
 @pytest.mark.asyncio
+async def test_jaccard_similarity_one_empty(jaccard_dissenter):
+    # This hits the line where one is empty and the other is not -> returns 0.0
+    t1 = "some content"
+    t2 = ""
+    assert jaccard_dissenter._calculate_jaccard_similarity(t1, t2) == 0.0
+    assert jaccard_dissenter._calculate_jaccard_similarity(t2, t1) == 0.0
+
+
+@pytest.mark.asyncio
 async def test_entropy_identical_proposals(jaccard_dissenter):
     p1 = create_output("consensus answer", "p1")
     p2 = create_output("consensus answer", "p2")

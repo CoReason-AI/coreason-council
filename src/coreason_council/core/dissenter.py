@@ -116,9 +116,6 @@ class JaccardDissenter(BaseDissenter):
     Entropy = 1.0 - Average Pairwise Agreement
     """
 
-    def __init__(self) -> None:
-        pass
-
     def _tokenize(self, text: str) -> set[str]:
         """
         Simple tokenizer: lowercase and split by non-alphanumeric characters.
