@@ -8,9 +8,78 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
+import asyncio
+import functools
+from typing import Any
+
+import click
+
+from coreason_council.core.aggregator import MockAggregator
+from coreason_council.core.dissenter import JaccardDissenter
+from coreason_council.core.panel_selector import PanelSelector
+from coreason_council.core.speaker import ChamberSpeaker
 from coreason_council.utils.logger import logger
 
 
-def hello_world() -> str:
-    logger.info("Hello World!")
-    return "Hello World!"
+def async_command(f: Any) -> Any:
+    """Decorator to run a click command in an async loop."""
+
+    @functools.wraps(f)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return asyncio.run(f(*args, **kwargs))
+
+    return wrapper
+
+
+@click.command()
+@click.argument("query")
+@click.option("--max-rounds", default=3, help="Maximum number of debate rounds.")
+@click.option("--entropy-threshold", default=0.1, help="Entropy threshold for consensus.")
+@async_command
+async def run_council(query: str, max_rounds: int, entropy_threshold: float) -> None:
+    """
+    Run a Council session for a given QUERY.
+    """
+    logger.info(f"Initializing Council for query: '{query}'")
+
+    # 1. Select Panel
+    panel_selector = PanelSelector()
+    proposers, personas = panel_selector.select_panel(query)
+    click.echo(f"Selected Panel: {[p.name for p in personas]}")
+
+    # 2. Initialize Components
+    # Using JaccardDissenter for deterministic entropy
+    dissenter = JaccardDissenter()
+    # Using MockAggregator as per current phase requirements
+    aggregator = MockAggregator()
+
+    # 3. Initialize Speaker
+    speaker = ChamberSpeaker(
+        proposers=proposers,
+        personas=personas,
+        dissenter=dissenter,
+        aggregator=aggregator,
+        entropy_threshold=entropy_threshold,
+        max_rounds=max_rounds,
+    )
+
+    # 4. Resolve Query
+    click.echo("Session started... (Check logs for details)")
+    verdict, trace = await speaker.resolve_query(query)
+
+    # 5. Output Results
+    click.echo("\n--- FINAL VERDICT ---")
+    click.echo(f"Content: {verdict.content}")
+    click.echo(f"Confidence: {verdict.confidence_score}")
+    click.echo(f"Supporting Evidence: {verdict.supporting_evidence}")
+    if verdict.alternatives:
+        click.echo("\n--- ALTERNATIVES (Deadlock) ---")
+        for alt in verdict.alternatives:
+            click.echo(f"Option: {alt.label} - Supported by {len(alt.supporters)} proposers")
+
+    click.echo(f"\nSession ID: {trace.session_id}")
+    click.echo("--- END ---")
+
+
+if __name__ == "__main__":  # pragma: no cover
+    run_council()

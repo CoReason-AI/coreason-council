@@ -9,7 +9,6 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 import pytest
-
 from coreason_council.core.panel_selector import PanelSelector
 from coreason_council.core.proposer import MockProposer
 from coreason_council.core.types import PersonaType

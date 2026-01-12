@@ -11,7 +11,6 @@
 import time
 
 import pytest
-
 from coreason_council.core.dissenter import JaccardDissenter
 from coreason_council.core.types import ProposerOutput
 

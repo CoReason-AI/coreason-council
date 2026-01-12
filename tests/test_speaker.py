@@ -9,7 +9,6 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 import pytest
-
 from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.dissenter import MockDissenter
 from coreason_council.core.proposer import MockProposer
