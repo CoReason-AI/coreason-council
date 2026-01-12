@@ -17,7 +17,7 @@ from coreason_council.core.types import ProposerOutput
 
 
 @pytest.fixture
-def jaccard_dissenter():
+def jaccard_dissenter() -> JaccardDissenter:
     return JaccardDissenter()
 
 
@@ -26,7 +26,7 @@ def create_output(content: str, pid: str) -> ProposerOutput:
 
 
 @pytest.mark.asyncio
-async def test_edge_case_symbolic_inputs(jaccard_dissenter):
+async def test_edge_case_symbolic_inputs(jaccard_dissenter: JaccardDissenter) -> None:
     """
     Current implementation uses \\w+ regex, which ignores punctuation and symbols.
     Therefore, '!!!' and '???' result in empty token sets.
@@ -45,7 +45,7 @@ async def test_edge_case_symbolic_inputs(jaccard_dissenter):
 
 
 @pytest.mark.asyncio
-async def test_edge_case_formatting_normalization(jaccard_dissenter):
+async def test_edge_case_formatting_normalization(jaccard_dissenter: JaccardDissenter) -> None:
     """
     Verify that casing, whitespace, and punctuation are normalized.
     """
@@ -62,7 +62,7 @@ async def test_edge_case_formatting_normalization(jaccard_dissenter):
 
 
 @pytest.mark.asyncio
-async def test_complex_bipolar_consensus(jaccard_dissenter):
+async def test_complex_bipolar_consensus(jaccard_dissenter: JaccardDissenter) -> None:
     """
     Scenario: 2 Proposers say 'Yes', 2 Proposers say 'No'.
     Group A: [p1, p2] (identical)
@@ -92,7 +92,7 @@ async def test_complex_bipolar_consensus(jaccard_dissenter):
 
 
 @pytest.mark.asyncio
-async def test_complex_chain_scenario(jaccard_dissenter):
+async def test_complex_chain_scenario(jaccard_dissenter: JaccardDissenter) -> None:
     """
     Scenario: 'Chain' of overlapping ideas.
     p1: "A"
@@ -126,7 +126,7 @@ async def test_complex_chain_scenario(jaccard_dissenter):
 
 
 @pytest.mark.asyncio
-async def test_performance_large_inputs(jaccard_dissenter):
+async def test_performance_large_inputs(jaccard_dissenter: JaccardDissenter) -> None:
     """
     Sanity check for larger inputs.
     We generate 1000 UNIQUE words to ensure the set size is large.
