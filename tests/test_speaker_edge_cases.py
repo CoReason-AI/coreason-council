@@ -133,3 +133,51 @@ async def test_aggregator_failure(mock_personas_3: list[Persona], mock_dissenter
 
     with pytest.raises(RuntimeError, match="Aggregator Crashed"):
         await speaker.resolve_query("test query")
+
+
+@pytest.mark.asyncio
+async def test_vote_tally_deadlock_edge_cases(mock_personas_3: list[Persona], mock_dissenter: MockDissenter) -> None:
+    """
+    Test edge cases for vote_tally population in Deadlock scenarios.
+    1. Empty Supporters list.
+    2. Duplicate Supporters (should be de-duplicated).
+    """
+
+    # Custom Aggregator that produces messy deadlock data
+    class MessyDeadlockAggregator(MockAggregator):
+        async def aggregate(
+            self, proposals: list[ProposerOutput], critiques: list[Critique], is_deadlock: bool = False
+        ) -> Verdict:
+            from coreason_council.core.types import VerdictOption
+
+            return Verdict(
+                content="Deadlock",
+                confidence_score=0.1,
+                alternatives=[
+                    # Case 1: No supporters
+                    VerdictOption(label="Option Empty", content="No support", supporters=[]),
+                    # Case 2: Duplicate supporters
+                    VerdictOption(label="Option Dupes", content="Dupe support", supporters=["p1", "p1", "p2"]),
+                ],
+            )
+
+    proposers = [
+        MockProposer(return_content="A"),
+        MockProposer(return_content="B"),
+        MockProposer(return_content="C"),
+    ]
+
+    # Ensure deadlock triggers
+    mock_dissenter.default_entropy_score = 0.9
+
+    speaker = ChamberSpeaker(
+        proposers, mock_personas_3, mock_dissenter, MessyDeadlockAggregator(), entropy_threshold=0.1, max_rounds=1
+    )
+
+    verdict, trace = await speaker.resolve_query("test query")
+
+    assert trace.vote_tally is not None
+    # Verify count is 0 for empty list
+    assert trace.vote_tally["Option Empty"] == 0
+    # Verify count is 2 for ['p1', 'p1', 'p2'] (p1 deduped)
+    assert trace.vote_tally["Option Dupes"] == 2

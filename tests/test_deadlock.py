@@ -83,6 +83,9 @@ async def test_deadlock_resolution(
     assert "p1-Alpha" in verdict.alternatives[0].supporters
     assert "p2-Beta" in verdict.alternatives[1].supporters
 
+    # Verify Vote Tally
+    assert trace.vote_tally == {"Option A": 1, "Option B": 1}
+
     # Trace Analysis:
     # Round 1: Critique + Revise
     # Round 2: Reached Max Round -> Deadlock (No Critique/Revise for Round 2)
@@ -248,7 +251,7 @@ async def test_deadlock_odd_proposers(
         max_rounds=2,
     )
 
-    verdict, _ = await speaker.resolve_query("Query")
+    verdict, trace = await speaker.resolve_query("Query")
 
     assert verdict.confidence_score == 0.1
     assert len(verdict.alternatives) == 2
@@ -260,6 +263,9 @@ async def test_deadlock_odd_proposers(
     assert "p1-A" in verdict.alternatives[0].supporters
     assert "p2-B" in verdict.alternatives[1].supporters
     assert "p3-C" in verdict.alternatives[1].supporters
+
+    # Verify Vote Tally
+    assert trace.vote_tally == {"Option A": 1, "Option B": 2}
 
 
 @pytest.mark.asyncio
