@@ -9,7 +9,6 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 from click.testing import CliRunner
-
 from coreason_council.main import run_council
 
 
@@ -31,9 +30,7 @@ def test_run_council_cli_deadlock() -> None:
     """Test the CLI execution triggering deadlock."""
     runner = CliRunner()
     # Use strict entropy threshold to force deadlock with mocks
-    result = runner.invoke(
-        run_council, ["Complex query", "--max-rounds", "1", "--entropy-threshold", "0.0"]
-    )
+    result = runner.invoke(run_council, ["Complex query", "--max-rounds", "1", "--entropy-threshold", "0.0"])
 
     assert result.exit_code == 0
     assert "--- FINAL VERDICT ---" in result.output

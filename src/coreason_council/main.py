@@ -10,7 +10,8 @@
 
 import asyncio
 import functools
-from typing import Any
+from collections.abc import Callable, Coroutine
+from typing import Any, TypeVar
 
 import click
 
@@ -20,8 +21,10 @@ from coreason_council.core.panel_selector import PanelSelector
 from coreason_council.core.speaker import ChamberSpeaker
 from coreason_council.utils.logger import logger
 
+F = TypeVar("F", bound=Callable[..., Coroutine[Any, Any, Any]])
 
-def async_command(f: Any) -> Any:
+
+def async_command(f: F) -> Callable[..., Any]:
     """Decorator to run a click command in an async loop."""
 
     @functools.wraps(f)

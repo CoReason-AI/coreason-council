@@ -9,7 +9,6 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 from click.testing import CliRunner
-
 from coreason_council.main import run_council
 
 
@@ -51,9 +50,7 @@ def test_cli_single_round_no_debate() -> None:
     """
     runner = CliRunner()
     # Force high entropy so we would normally debate, but max-rounds 1 prevents it.
-    result = runner.invoke(
-        run_council, ["Complex query", "--max-rounds", "1", "--entropy-threshold", "-1.0"]
-    )
+    result = runner.invoke(run_council, ["Complex query", "--max-rounds", "1", "--entropy-threshold", "-1.0"])
 
     assert result.exit_code == 0
     assert "Session started..." in result.output
@@ -69,9 +66,7 @@ def test_cli_forced_high_entropy_loop() -> None:
     With max-rounds 2, it should run 1 critique round.
     """
     runner = CliRunner()
-    result = runner.invoke(
-        run_council, ["Query", "--max-rounds", "2", "--entropy-threshold", "-0.1"]
-    )
+    result = runner.invoke(run_council, ["Query", "--max-rounds", "2", "--entropy-threshold", "-0.1"])
 
     assert result.exit_code == 0
     # Logic:
