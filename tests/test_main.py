@@ -9,7 +9,6 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 import pytest
-
 from coreason_council.main import hello_world
 
 
