@@ -10,6 +10,7 @@
 
 import asyncio
 import functools
+import json
 from collections.abc import Callable, Coroutine
 from typing import Any, TypeVar
 
@@ -38,8 +39,9 @@ def async_command(f: F) -> Callable[..., Any]:
 @click.argument("query")
 @click.option("--max-rounds", default=3, help="Maximum number of debate rounds.")
 @click.option("--entropy-threshold", default=0.1, help="Entropy threshold for consensus.")
+@click.option("--show-trace", is_flag=True, default=False, help="Display the full debate transcript.")
 @async_command
-async def run_council(query: str, max_rounds: int, entropy_threshold: float) -> None:
+async def run_council(query: str, max_rounds: int, entropy_threshold: float, show_trace: bool) -> None:
     """
     Run a Council session for a given QUERY.
     """
@@ -81,6 +83,19 @@ async def run_council(query: str, max_rounds: int, entropy_threshold: float) -> 
             click.echo(f"Option: {alt.label} - Supported by {len(alt.supporters)} proposers")
 
     click.echo(f"\nSession ID: {trace.session_id}")
+
+    # 6. Optional Trace Display
+    if show_trace:
+        click.echo("\n--- DEBATE TRANSCRIPT ---")
+        for entry in trace.transcripts:
+            # Simple formatting: [Time] Actor (Action): Content
+            click.echo(f"[{entry.timestamp.strftime('%H:%M:%S')}] {entry.actor} ({entry.action}):")
+            click.echo(f"  {entry.content}")
+            click.echo("-" * 40)
+
+        click.echo("\n--- VOTE TALLY ---")
+        click.echo(json.dumps(trace.vote_tally, indent=2))
+
     click.echo("--- END ---")
 
 

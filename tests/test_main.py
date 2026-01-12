@@ -37,3 +37,15 @@ def test_run_council_cli_deadlock() -> None:
     assert "--- FINAL VERDICT ---" in result.output
     assert "MINORITY REPORT: Deadlock detected" in result.output
     assert "--- ALTERNATIVES (Deadlock) ---" in result.output
+
+
+def test_run_council_cli_with_trace() -> None:
+    """Test the CLI execution with the --show-trace flag."""
+    runner = CliRunner()
+    result = runner.invoke(run_council, ["Explain Quantum", "--show-trace"])
+
+    assert result.exit_code == 0
+    assert "--- DEBATE TRANSCRIPT ---" in result.output
+    assert "--- VOTE TALLY ---" in result.output
+    # Check for presence of timestamps or actor names which indicate trace is printing
+    assert "propose" in result.output or "verdict" in result.output
