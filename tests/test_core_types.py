@@ -12,6 +12,8 @@ import json
 from datetime import datetime, timezone
 
 import pytest
+from pydantic import ValidationError
+
 from coreason_council.core.types import (
     CouncilTrace,
     Critique,
@@ -21,7 +23,6 @@ from coreason_council.core.types import (
     Verdict,
     VerdictOption,
 )
-from pydantic import ValidationError
 
 
 def test_council_trace_initialization() -> None:
