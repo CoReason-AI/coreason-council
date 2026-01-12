@@ -206,7 +206,7 @@ class ChamberSpeaker:
         # Populate vote tally
         if verdict.alternatives:
             # Deadlock scenario: Count supporters for each alternative
-            trace.vote_tally = {alt.label: len(alt.supporters) for alt in verdict.alternatives}
+            trace.vote_tally = {alt.label: len(set(alt.supporters)) for alt in verdict.alternatives}
         else:
             # Consensus scenario: Assume all participating proposers support the consensus
             trace.vote_tally = {"Consensus": len(self.proposers)}
