@@ -9,6 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 from click.testing import CliRunner
+
 from coreason_council.main import run_council
 
 

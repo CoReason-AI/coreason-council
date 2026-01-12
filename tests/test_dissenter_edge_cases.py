@@ -11,6 +11,7 @@
 import asyncio
 
 import pytest
+
 from coreason_council.core.dissenter import MockDissenter
 from coreason_council.core.types import Persona, ProposerOutput
 
