@@ -149,6 +149,9 @@ async def test_resolve_query_low_entropy_flow(
     assert "p1-Persona A" in verdict.content
     assert "p2-Persona B" in verdict.content
 
+    # 4. Verify Vote Tally
+    assert trace.vote_tally == {"Consensus": 2}
+
 
 @pytest.mark.asyncio
 async def test_resolve_query_high_entropy_flow(
@@ -207,3 +210,6 @@ async def test_resolve_query_high_entropy_flow(
         "Critiqued by: Persona A, Persona B" in verdict.content
         or "Critiqued by: Persona B, Persona A" in verdict.content
     )
+
+    # 5. Verify Vote Tally (Consensus Reached)
+    assert trace.vote_tally == {"Consensus": 2}
