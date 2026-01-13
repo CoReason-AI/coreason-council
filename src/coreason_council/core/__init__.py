@@ -10,6 +10,7 @@
 
 from coreason_council.core.aggregator import BaseAggregator, MockAggregator
 from coreason_council.core.dissenter import BaseDissenter, MockDissenter
+from coreason_council.core.llm_aggregator import LLMAggregator
 from coreason_council.core.panel_selector import PanelSelector
 from coreason_council.core.proposer import BaseProposer, MockProposer
 from coreason_council.core.speaker import ChamberSpeaker
@@ -19,6 +20,7 @@ __all__ = [
     "BaseDissenter",
     "BaseProposer",
     "ChamberSpeaker",
+    "LLMAggregator",
     "MockAggregator",
     "MockDissenter",
     "MockProposer",
