@@ -17,6 +17,7 @@ from typing import Any, TypeVar
 import click
 
 from coreason_council.core.aggregator import MockAggregator
+from coreason_council.core.budget import SimpleBudgetManager
 from coreason_council.core.dissenter import JaccardDissenter
 from coreason_council.core.panel_selector import PanelSelector
 from coreason_council.core.speaker import ChamberSpeaker
@@ -39,9 +40,10 @@ def async_command(f: F) -> Callable[..., Any]:
 @click.argument("query")
 @click.option("--max-rounds", default=3, help="Maximum number of debate rounds.")
 @click.option("--entropy-threshold", default=0.1, help="Entropy threshold for consensus.")
+@click.option("--max-budget", default=100, help="Maximum budget (in operations) before downgrading topology.")
 @click.option("--show-trace", is_flag=True, default=False, help="Display the full debate transcript.")
 @async_command
-async def run_council(query: str, max_rounds: int, entropy_threshold: float, show_trace: bool) -> None:
+async def run_council(query: str, max_rounds: int, entropy_threshold: float, max_budget: int, show_trace: bool) -> None:
     """
     Run a Council session for a given QUERY.
     """
@@ -57,6 +59,8 @@ async def run_council(query: str, max_rounds: int, entropy_threshold: float, sho
     dissenter = JaccardDissenter()
     # Using MockAggregator as per current phase requirements
     aggregator = MockAggregator()
+    # Using SimpleBudgetManager
+    budget_manager = SimpleBudgetManager(max_budget=max_budget)
 
     # 3. Initialize Speaker
     speaker = ChamberSpeaker(
@@ -64,6 +68,7 @@ async def run_council(query: str, max_rounds: int, entropy_threshold: float, sho
         personas=personas,
         dissenter=dissenter,
         aggregator=aggregator,
+        budget_manager=budget_manager,
         entropy_threshold=entropy_threshold,
         max_rounds=max_rounds,
     )
