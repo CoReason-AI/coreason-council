@@ -13,6 +13,7 @@ import uuid
 from typing import Sequence
 
 from coreason_council.core.aggregator import BaseAggregator
+from coreason_council.core.budget import BaseBudgetManager
 from coreason_council.core.dissenter import BaseDissenter
 from coreason_council.core.proposer import BaseProposer
 from coreason_council.core.types import CouncilTrace, Critique, Persona, TopologyType, Verdict
@@ -32,6 +33,7 @@ class ChamberSpeaker:
         personas: Sequence[Persona],
         dissenter: BaseDissenter,
         aggregator: BaseAggregator,
+        budget_manager: BaseBudgetManager | None = None,
         entropy_threshold: float = 0.1,
         max_rounds: int = 3,
     ) -> None:
@@ -43,6 +45,7 @@ class ChamberSpeaker:
             personas: A sequence of Personas corresponding to the proposers.
             dissenter: The Dissenter instance (The Critic).
             aggregator: The Aggregator instance (The Judge).
+            budget_manager: Optional BudgetManager to enforce cost constraints.
             entropy_threshold: The threshold below which consensus is accepted immediately.
             max_rounds: The maximum number of debate rounds before triggering a deadlock.
         """
@@ -69,6 +72,7 @@ class ChamberSpeaker:
         self.personas = list(personas)
         self.dissenter = dissenter
         self.aggregator = aggregator
+        self.budget_manager = budget_manager
         self.entropy_threshold = entropy_threshold
         self.max_rounds = max_rounds
 
@@ -91,6 +95,18 @@ class ChamberSpeaker:
         session_id = str(uuid.uuid4())
         roster_names = [p.name for p in self.personas]
         current_max_rounds = max_rounds if max_rounds is not None else self.max_rounds
+
+        # Cost Control Hook
+        if self.budget_manager:
+            n_proposers = len(self.proposers)
+            original_rounds = current_max_rounds
+            current_max_rounds = self.budget_manager.check_budget(n_proposers, current_max_rounds)
+
+            if current_max_rounds != original_rounds:
+                logger.warning(
+                    f"Session {session_id}: Budget constraint triggered. "
+                    f"Downgraded max_rounds from {original_rounds} to {current_max_rounds}."
+                )
 
         trace = CouncilTrace(
             session_id=session_id,
