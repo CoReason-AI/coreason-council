@@ -11,16 +11,22 @@
 import asyncio
 import functools
 import json
+import os
 from collections.abc import Callable, Coroutine
 from typing import Any, TypeVar
 
 import click
 
-from coreason_council.core.aggregator import MockAggregator
+from coreason_council.core.aggregator import BaseAggregator, MockAggregator
 from coreason_council.core.budget import SimpleBudgetManager
 from coreason_council.core.dissenter import JaccardDissenter
+from coreason_council.core.llm_aggregator import LLMAggregator
+from coreason_council.core.llm_client import OpenAILLMClient
+from coreason_council.core.llm_proposer import LLMProposer
 from coreason_council.core.panel_selector import PanelSelector
+from coreason_council.core.proposer import BaseProposer
 from coreason_council.core.speaker import ChamberSpeaker
+from coreason_council.core.types import Persona
 from coreason_council.utils.logger import logger
 
 F = TypeVar("F", bound=Callable[..., Coroutine[Any, Any, Any]])
@@ -42,23 +48,48 @@ def async_command(f: F) -> Callable[..., Any]:
 @click.option("--entropy-threshold", default=0.1, help="Entropy threshold for consensus.")
 @click.option("--max-budget", default=100, help="Maximum budget (in operations) before downgrading topology.")
 @click.option("--show-trace", is_flag=True, default=False, help="Display the full debate transcript.")
+@click.option(
+    "--llm", is_flag=True, default=False, help="Use Real LLM (OpenAI) instead of Mock agents. Requires OPENAI_API_KEY."
+)
 @async_command
-async def run_council(query: str, max_rounds: int, entropy_threshold: float, max_budget: int, show_trace: bool) -> None:
+async def run_council(
+    query: str, max_rounds: int, entropy_threshold: float, max_budget: int, show_trace: bool, llm: bool
+) -> None:
     """
     Run a Council session for a given QUERY.
     """
-    logger.info(f"Initializing Council for query: '{query}'")
+    logger.info(f"Initializing Council for query: '{query}' (Mode: {'LLM' if llm else 'Mock'})")
+
+    # Setup Components based on Mode
+    aggregator: BaseAggregator
+    proposer_factory: Callable[[Persona], BaseProposer] | None
+
+    if llm:
+        if not os.getenv("OPENAI_API_KEY"):
+            raise click.ClickException("OPENAI_API_KEY environment variable is required when using --llm.")
+
+        # Shared Client
+        llm_client = OpenAILLMClient()
+
+        # Factories
+        def _llm_factory(p: Persona) -> BaseProposer:
+            return LLMProposer(llm_client)
+
+        proposer_factory = _llm_factory
+        aggregator = LLMAggregator(llm_client)
+    else:
+        proposer_factory = None  # Defaults to Mock inside PanelSelector
+        aggregator = MockAggregator()
 
     # 1. Select Panel
-    panel_selector = PanelSelector()
+    # Inject the appropriate factory
+    panel_selector = PanelSelector(proposer_factory=proposer_factory)
     proposers, personas = panel_selector.select_panel(query)
     click.echo(f"Selected Panel: {[p.name for p in personas]}")
 
     # 2. Initialize Components
     # Using JaccardDissenter for deterministic entropy
     dissenter = JaccardDissenter()
-    # Using MockAggregator as per current phase requirements
-    aggregator = MockAggregator()
     # Using SimpleBudgetManager
     budget_manager = SimpleBudgetManager(max_budget=max_budget)
 
