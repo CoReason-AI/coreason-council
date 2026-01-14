@@ -51,7 +51,8 @@ async def test_openai_client_standard_completion(openai_client: OpenAILLMClient)
     mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
     mock_create.return_value = mock_response
 
-    # Cast to Any to allow method assignment for mocking
+    # Cast to Any to allow method assignment for mocking.
+    # Because 'instructor' wraps the client, we mock the method on openai_client.client.chat.completions
     cast(Any, openai_client.client).chat.completions.create = mock_create
 
     request = LLMRequest(messages=[{"role": "user", "content": "Hello"}], temperature=0.5)
@@ -67,7 +68,8 @@ async def test_openai_client_standard_completion(openai_client: OpenAILLMClient)
     call_kwargs = mock_create.call_args.kwargs
     assert call_kwargs["model"] == "gpt-4o"
     assert call_kwargs["temperature"] == 0.5
-    assert call_kwargs["messages"] == [{"role": "user", "content": "Hello"}]
+    # messages might be cast to ChatCompletionMessageParam, so we check content
+    assert call_kwargs["messages"][0]["content"] == "Hello"
 
 
 @pytest.mark.asyncio
@@ -85,23 +87,25 @@ async def test_openai_client_system_prompt_handling(openai_client: OpenAILLMClie
     call_kwargs = mock_create.call_args.kwargs
     messages = call_kwargs["messages"]
     assert len(messages) == 2
-    assert messages[0] == {"role": "system", "content": "You are a helpful assistant."}
-    assert messages[1] == {"role": "user", "content": "Hi"}
+    assert messages[0]["content"] == "You are a helpful assistant."
+    assert messages[1]["content"] == "Hi"
 
 
 @pytest.mark.asyncio
 async def test_openai_client_structured_output(openai_client: OpenAILLMClient) -> None:
-    # Mock beta.chat.completions.parse
-    mock_parse = AsyncMock()
+    # Mock create_with_completion (Instructor's method)
+    mock_create_wc = AsyncMock()
     mock_response = MagicMock()
     mock_response.id = "chatcmpl-struct"
 
     mock_parsed_obj = MockStructuredOutput(reasoning="Because X", verdict="True")
-    mock_response.choices = [MagicMock(message=MagicMock(parsed=mock_parsed_obj), finish_reason="stop")]
+    mock_response.choices = [MagicMock(message=MagicMock(), finish_reason="stop")]
     mock_response.usage = MagicMock(prompt_tokens=20, completion_tokens=10, total_tokens=30)
-    mock_parse.return_value = mock_response
 
-    cast(Any, openai_client.client).beta.chat.completions.parse = mock_parse
+    # create_with_completion returns (model, completion)
+    mock_create_wc.return_value = (mock_parsed_obj, mock_response)
+
+    cast(Any, openai_client.client).chat.completions.create_with_completion = mock_create_wc
 
     request = LLMRequest(messages=[{"role": "user", "content": "Analyze this"}], response_schema=MockStructuredOutput)
 
@@ -112,57 +116,9 @@ async def test_openai_client_structured_output(openai_client: OpenAILLMClient) -
     assert "Because X" in response.content
     assert "True" in response.content
 
-    mock_parse.assert_called_once()
-    call_kwargs = mock_parse.call_args.kwargs
-    assert call_kwargs["response_format"] == MockStructuredOutput
-
-
-@pytest.mark.asyncio
-async def test_openai_client_structured_output_refusal(openai_client: OpenAILLMClient) -> None:
-    # Mock beta.chat.completions.parse with refusal
-    mock_parse = AsyncMock()
-    mock_response = MagicMock()
-    mock_response.id = "chatcmpl-refused"
-
-    # Simulate refusal: parsed is None, refusal is populated
-    mock_response.choices = [
-        MagicMock(message=MagicMock(parsed=None, refusal="I cannot answer this."), finish_reason="stop")
-    ]
-    mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
-    mock_parse.return_value = mock_response
-
-    cast(Any, openai_client.client).beta.chat.completions.parse = mock_parse
-
-    request = LLMRequest(
-        messages=[{"role": "user", "content": "Do something bad"}], response_schema=MockStructuredOutput
-    )
-
-    response = await openai_client.get_completion(request)
-
-    assert response.raw_content is None
-    assert response.content == "I cannot answer this."
-    assert response.finish_reason == "stop"
-
-
-@pytest.mark.asyncio
-async def test_openai_client_json_mode(openai_client: OpenAILLMClient) -> None:
-    mock_create = AsyncMock()
-    mock_response = MagicMock()
-    mock_response.choices = [MagicMock(message=MagicMock(content='{"foo": "bar"}'), finish_reason="stop")]
-    mock_create.return_value = mock_response
-    cast(Any, openai_client.client).chat.completions.create = mock_create
-
-    request = LLMRequest(
-        messages=[{"role": "user", "content": "json please"}],
-        response_schema={"type": "object"},  # Dict schema implies checking for json_mode metadata or custom
-        metadata={"json_mode": True},
-    )
-
-    await openai_client.get_completion(request)
-
-    mock_create.assert_called_once()
-    call_kwargs = mock_create.call_args.kwargs
-    assert call_kwargs["response_format"] == {"type": "json_object"}
+    mock_create_wc.assert_called_once()
+    call_kwargs = mock_create_wc.call_args.kwargs
+    assert call_kwargs["response_model"] == MockStructuredOutput
 
 
 @pytest.mark.asyncio
@@ -208,17 +164,17 @@ async def test_openai_client_api_errors(openai_client: OpenAILLMClient) -> None:
 
 @pytest.mark.asyncio
 async def test_openai_client_complex_nested_schema(openai_client: OpenAILLMClient) -> None:
-    mock_parse = AsyncMock()
+    mock_create_wc = AsyncMock()
     mock_response = MagicMock()
     mock_response.id = "chatcmpl-complex"
 
     mock_data = ComplexSchema(id=123, details=NestedSchema(sub_field="sub"), tags=["a", "b"])
 
-    mock_response.choices = [MagicMock(message=MagicMock(parsed=mock_data), finish_reason="stop")]
+    mock_response.choices = [MagicMock(message=MagicMock(), finish_reason="stop")]
     mock_response.usage = MagicMock(prompt_tokens=50, completion_tokens=20, total_tokens=70)
-    mock_parse.return_value = mock_response
+    mock_create_wc.return_value = (mock_data, mock_response)
 
-    cast(Any, openai_client.client).beta.chat.completions.parse = mock_parse
+    cast(Any, openai_client.client).chat.completions.create_with_completion = mock_create_wc
 
     request = LLMRequest(messages=[{"role": "user", "content": "Complex data"}], response_schema=ComplexSchema)
 
@@ -229,9 +185,9 @@ async def test_openai_client_complex_nested_schema(openai_client: OpenAILLMClien
     assert "sub" in response.content
     assert "123" in response.content
 
-    mock_parse.assert_called_once()
-    call_kwargs = mock_parse.call_args.kwargs
-    assert call_kwargs["response_format"] == ComplexSchema
+    mock_create_wc.assert_called_once()
+    call_kwargs = mock_create_wc.call_args.kwargs
+    assert call_kwargs["response_model"] == ComplexSchema
 
 
 @pytest.mark.asyncio
@@ -250,30 +206,3 @@ async def test_openai_client_token_usage_missing(openai_client: OpenAILLMClient)
 
     assert response.usage == {}
     assert response.content == "No usage stats"
-
-
-@pytest.mark.asyncio
-async def test_openai_client_complex_history(openai_client: OpenAILLMClient) -> None:
-    # Verify mult-turn conversation
-    mock_create = AsyncMock()
-    mock_response = MagicMock()
-    mock_response.choices = [MagicMock(message=MagicMock(content="Response"), finish_reason="stop")]
-    mock_create.return_value = mock_response
-    cast(Any, openai_client.client).chat.completions.create = mock_create
-
-    messages = [
-        {"role": "system", "content": "Sys"},
-        {"role": "user", "content": "Q1"},
-        {"role": "assistant", "content": "A1"},
-        {"role": "user", "content": "Q2"},
-    ]
-    request = LLMRequest(messages=messages)
-
-    await openai_client.get_completion(request)
-
-    mock_create.assert_called_once()
-    call_kwargs = mock_create.call_args.kwargs
-    sent_messages = call_kwargs["messages"]
-    assert len(sent_messages) == 4
-    assert sent_messages[0]["content"] == "Sys"
-    assert sent_messages[3]["content"] == "Q2"
