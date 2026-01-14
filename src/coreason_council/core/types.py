@@ -16,15 +16,15 @@ from pydantic import BaseModel, Field
 
 
 class PersonaType(str, Enum):
-    ONCOLOGIST = "oncologist"
-    BIOSTATISTICIAN = "biostatistician"
-    REGULATORY = "regulatory"
-    ARCHITECT = "architect"
-    SECURITY = "security"
-    QA = "qa"
-    SKEPTIC = "skeptic"
-    OPTIMIST = "optimist"
-    GENERALIST = "generalist"
+    ONCOLOGIST = "Oncologist"
+    BIOSTATISTICIAN = "Biostatistician"
+    REGULATORY = "Regulatory"
+    ARCHITECT = "Architect"
+    SECURITY = "Security"
+    QA = "QA"
+    SKEPTIC = "Skeptic"
+    OPTIMIST = "Optimist"
+    GENERALIST = "Generalist"
 
 
 class TopologyType(str, Enum):
