@@ -12,8 +12,12 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, Optional, cast
 
+import instructor
+from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, Field
 
+from coreason_council.settings import settings
 from coreason_council.utils.logger import logger
 
 
@@ -118,39 +122,33 @@ class MockLLMClient(BaseLLMClient):
 
 class OpenAILLMClient(BaseLLMClient):
     """
-    OpenAI implementation of LLM Client.
+    OpenAI implementation of LLM Client using Instructor.
     """
 
     def __init__(self, api_key: Optional[str] = None) -> None:
         """
-        Initializes the OpenAI client.
-        Relies on OPENAI_API_KEY environment variable if api_key is not provided.
+        Initializes the OpenAI client patched with Instructor.
+        Relies on settings.openai_api_key if api_key is not provided.
         """
-        from openai import AsyncOpenAI
-
-        self.client = AsyncOpenAI(api_key=api_key)
+        key = api_key or settings.openai_api_key
+        # We assume OPENAI_API_KEY is available in env or settings
+        self.client = instructor.from_openai(AsyncOpenAI(api_key=key))
 
     async def get_completion(self, request: LLMRequest) -> LLMResponse:
         """
-        Generates a completion using OpenAI API.
-        Handles both standard chat completion and structured output (beta.parse).
+        Generates a completion using OpenAI API via Instructor.
         """
-        from openai.types.chat import ChatCompletionMessageParam
-
         logger.debug(f"OpenAILLMClient processing request with {len(request.messages)} messages.")
 
         # Prepare messages
-        # We need to cast the dictionaries to ChatCompletionMessageParam because OpenAI's types are TypedDicts
-        # and LLMRequest.messages is just list[dict[str, str]].
-        messages_list: list[ChatCompletionMessageParam] = []
-
+        messages: list[ChatCompletionMessageParam] = []
         if request.system_prompt:
-            messages_list.append({"role": "system", "content": request.system_prompt})
+            messages.append({"role": "system", "content": request.system_prompt})
 
         for msg in request.messages:
-            # Assuming msg has 'role' and 'content' keys as strings.
-            # We trust the caller or validation elsewhere, here we just cast to satisfy mypy.
-            messages_list.append(cast(ChatCompletionMessageParam, msg))
+            # msg is dict[str, str], we cast to ChatCompletionMessageParam to satisfy type checker
+            # Assuming structure is correct (role, content)
+            messages.append(cast(ChatCompletionMessageParam, msg))
 
         # Default model if not specified in metadata
         model = str(request.metadata.get("model", "gpt-4o"))
@@ -161,51 +159,42 @@ class OpenAILLMClient(BaseLLMClient):
                 and isinstance(request.response_schema, type)
                 and issubclass(request.response_schema, BaseModel)
             ):
-                # Use Structured Outputs (beta.parse)
-                logger.debug(f"Using beta.chat.completions.parse with schema {request.response_schema.__name__}")
-                completion_parsed = await self.client.beta.chat.completions.parse(
+                # Use Instructor for structured output
+                logger.debug(f"Using instructor.chat.completions.create with schema {request.response_schema.__name__}")
+
+                # Instructor's create returns the parsed object directly
+                response_model = request.response_schema
+
+                # We use create_with_completion to get usage stats
+                parsed_content, completion = await self.client.chat.completions.create_with_completion(
                     model=model,
-                    messages=messages_list,
-                    response_format=request.response_schema,
+                    messages=messages,
+                    response_model=response_model,
                     temperature=request.temperature,
                     max_tokens=request.max_tokens,
                 )
 
-                parsed_content = completion_parsed.choices[0].message.parsed
-                finish_reason = completion_parsed.choices[0].finish_reason
-
-                # We need to serialize the parsed content back to string for consistency
-                # If parsed_content is None (refusal), handle it
-                if parsed_content is None:
-                    # Fallback to refusal content if available
-                    content_str = getattr(completion_parsed.choices[0].message, "refusal", "") or ""
-                else:
-                    content_str = parsed_content.model_dump_json()
-
+                content_str = parsed_content.model_dump_json()
                 raw_content = parsed_content
-                usage_obj = completion_parsed.usage
-                completion_id = completion_parsed.id
+                usage_obj = completion.usage
+                finish_reason = completion.choices[0].finish_reason
+                completion_id = completion.id
 
             else:
                 # Standard completion
-                # Check if generic JSON mode is requested via metadata or if response_schema is a dict
-                response_format = None
-                if isinstance(request.response_schema, dict):
-                    # It's a dict schema, might be json_schema or simple json_object
-                    if request.metadata.get("json_mode", False):
-                        response_format = {"type": "json_object"}
-
-                # For standard create, we need to cast response_format properly if strictly typed,
-                # but let's see if Any works or if we need specific type.
-                # OpenAI expects ResponseFormat or dict.
+                # Actually, instructor wraps the client. If we want raw completion without validation,
+                # we might need to access the original client or pass response_model=None if supported.
+                # Instructor docs say:
+                # client.chat.completions.create(..., response_model=None) returns regular response.
 
                 completion = await self.client.chat.completions.create(
                     model=model,
-                    messages=messages_list,
+                    messages=messages,
                     temperature=request.temperature,
                     max_tokens=request.max_tokens,
-                    response_format=cast(Any, response_format),
+                    response_model=None,
                 )
+
                 content_str = completion.choices[0].message.content or ""
                 raw_content = None
                 finish_reason = completion.choices[0].finish_reason
