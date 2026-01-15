@@ -13,8 +13,8 @@ from typing import Callable
 
 import yaml
 
+from coreason_council.core.models.persona import Persona, PersonaType
 from coreason_council.core.proposer import BaseProposer, MockProposer
-from coreason_council.core.types import Persona, PersonaType
 from coreason_council.settings import settings
 from coreason_council.utils.logger import logger
 

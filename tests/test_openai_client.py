@@ -13,10 +13,9 @@ from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from coreason_council.core.llm_client import LLMRequest, LLMResponse, OpenAILLMClient
 from openai import AuthenticationError, RateLimitError
 from pydantic import BaseModel
-
-from coreason_council.core.llm_client import LLMRequest, LLMResponse, OpenAILLMClient
 
 
 class MockStructuredOutput(BaseModel):

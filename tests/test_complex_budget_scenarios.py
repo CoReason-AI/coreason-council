@@ -9,13 +9,14 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 import pytest
-
 from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.budget import SimpleBudgetManager
 from coreason_council.core.dissenter import MockDissenter
+from coreason_council.core.models.persona import Persona
 from coreason_council.core.proposer import MockProposer
 from coreason_council.core.speaker import ChamberSpeaker
-from coreason_council.core.types import Persona
+
+# Original imports were: Persona
 
 
 class TestComplexBudgetScenarios:

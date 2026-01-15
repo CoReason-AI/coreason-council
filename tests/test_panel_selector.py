@@ -9,9 +9,11 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 
+from coreason_council.core.models.persona import Persona
 from coreason_council.core.panel_selector import PanelSelector
 from coreason_council.core.proposer import MockProposer
-from coreason_council.core.types import Persona
+
+# Original imports were: Persona
 
 
 def test_panel_selector_init() -> None:

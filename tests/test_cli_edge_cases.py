@@ -9,9 +9,8 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 import pytest
-from typer.testing import CliRunner
-
 from coreason_council.main import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

@@ -12,9 +12,8 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-from typer.testing import CliRunner
-
 from coreason_council.main import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 
