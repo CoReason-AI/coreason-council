@@ -59,7 +59,9 @@ async def test_complex_high_entropy_loop(complex_personas: list[Persona], mock_p
     # Round 1 Check: 0.8 (High)
     # Round 2 Check: 0.6 (High)
     # Round 3 Check: 0.05 (Low -> Consensus)
-    mock_dissenter.calculate_entropy = AsyncMock(side_effect=[0.8, 0.6, 0.05])  # type: ignore[method-assign]
+    setattr(
+        mock_dissenter, "calculate_entropy", AsyncMock(side_effect=[0.8, 0.6, 0.05])
+    )  # noqa: B010
 
     speaker = ChamberSpeaker(
         proposers=mock_proposers,
@@ -125,7 +127,7 @@ async def test_max_rounds_boundary_deadlock(
     """
     mock_aggregator = MockAggregator()
     mock_dissenter = MockDissenter()
-    mock_dissenter.calculate_entropy = AsyncMock(return_value=0.9)  # type: ignore[method-assign]
+    setattr(mock_dissenter, "calculate_entropy", AsyncMock(return_value=0.9))  # noqa: B010
 
     speaker = ChamberSpeaker(
         proposers=mock_proposers,
