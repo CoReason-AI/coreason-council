@@ -11,9 +11,11 @@
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
+
 from pydantic import BaseModel, Field
 
 from coreason_council.core.models.verdict import Verdict
+
 
 class TopologyType(str, Enum):
     STAR = "star"
@@ -21,11 +23,13 @@ class TopologyType(str, Enum):
     MESH = "mesh"
     ROUND_TABLE = "round_table"
 
+
 class TranscriptEntry(BaseModel):
     actor: str
     action: str
     content: str
     timestamp: datetime
+
 
 class CouncilTrace(BaseModel):
     """

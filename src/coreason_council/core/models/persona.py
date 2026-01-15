@@ -9,7 +9,9 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 from enum import Enum
+
 from pydantic import BaseModel, Field
+
 
 class PersonaType(str, Enum):
     ONCOLOGIST = "Oncologist"
@@ -21,6 +23,7 @@ class PersonaType(str, Enum):
     SKEPTIC = "Skeptic"
     OPTIMIST = "Optimist"
     GENERALIST = "Generalist"
+
 
 class Persona(BaseModel):
     name: str

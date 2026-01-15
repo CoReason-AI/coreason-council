@@ -10,17 +10,21 @@
 
 from enum import Enum
 from typing import Annotated
+
 from pydantic import BaseModel, Field
+
 
 class VoteOption(str, Enum):
     APPROVE = "approve"
     REJECT = "reject"
     ABSTAIN = "abstain"
 
+
 class VerdictOption(BaseModel):
     label: str
     content: str
     supporters: list[str]
+
 
 class Verdict(BaseModel):
     content: str

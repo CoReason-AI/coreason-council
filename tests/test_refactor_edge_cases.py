@@ -8,14 +8,12 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
-import json
-from datetime import datetime, timezone
 import pytest
-from pydantic import ValidationError
-
+from coreason_council.core.models.interaction import ProposerOutput
 from coreason_council.core.models.trace import CouncilTrace, TopologyType
 from coreason_council.core.models.verdict import Verdict, VerdictOption
-from coreason_council.core.models.interaction import ProposerOutput
+from pydantic import ValidationError
+
 
 def test_trace_full_serialization_cycle() -> None:
     """
@@ -25,10 +23,7 @@ def test_trace_full_serialization_cycle() -> None:
     """
     # Create a complex trace object
     trace = CouncilTrace(
-        session_id="session-complex-1",
-        roster=["Alice", "Bob"],
-        topology=TopologyType.ROUND_TABLE,
-        entropy_score=0.45
+        session_id="session-complex-1", roster=["Alice", "Bob"], topology=TopologyType.ROUND_TABLE, entropy_score=0.45
     )
 
     # Add transcripts
@@ -43,8 +38,8 @@ def test_trace_full_serialization_cycle() -> None:
         dissenting_opinions=["Diss 1"],
         alternatives=[
             VerdictOption(label="Opt A", content="Content A", supporters=["Alice"]),
-            VerdictOption(label="Opt B", content="Content B", supporters=["Bob"])
-        ]
+            VerdictOption(label="Opt B", content="Content B", supporters=["Bob"]),
+        ],
     )
     trace.final_verdict = verdict
     trace.vote_tally = {"Opt A": 1, "Opt B": 1}
@@ -66,6 +61,7 @@ def test_trace_full_serialization_cycle() -> None:
     assert rehydrated_trace.final_verdict.alternatives[0].supporters == ["Alice"]
     assert rehydrated_trace.vote_tally == {"Opt A": 1, "Opt B": 1}
 
+
 def test_verdict_option_edge_cases() -> None:
     """
     Edge Case: VerdictOption validation.
@@ -77,6 +73,7 @@ def test_verdict_option_edge_cases() -> None:
     # 2. Empty Content
     opt_empty = VerdictOption(label="Label", content="", supporters=["A"])
     assert opt_empty.content == ""
+
 
 def test_verdict_validation_edge_cases() -> None:
     """
@@ -93,6 +90,7 @@ def test_verdict_validation_edge_cases() -> None:
     with pytest.raises(ValidationError):
         Verdict(content="X", confidence_score=1.01)
 
+
 def test_proposer_output_metadata_serialization() -> None:
     """
     Edge Case: Ensure arbitrary metadata in ProposerOutput handles
@@ -102,11 +100,7 @@ def test_proposer_output_metadata_serialization() -> None:
         proposer_id="p1",
         content="content",
         confidence=0.5,
-        metadata={
-            "nested": {"key": "value"},
-            "list": [1, 2, 3],
-            "none_val": None
-        }
+        metadata={"nested": {"key": "value"}, "list": [1, 2, 3], "none_val": None},
     )
 
     json_str = output.model_dump_json()

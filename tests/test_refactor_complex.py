@@ -8,15 +8,16 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
-import pytest
 from unittest.mock import AsyncMock
 
-from coreason_council.core.speaker import ChamberSpeaker
-from coreason_council.core.models.persona import Persona
-from coreason_council.core.models.trace import TopologyType
+import pytest
 from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.dissenter import MockDissenter
+from coreason_council.core.models.persona import Persona
+from coreason_council.core.models.trace import TopologyType
 from coreason_council.core.proposer import MockProposer
+from coreason_council.core.speaker import ChamberSpeaker
+
 
 @pytest.fixture
 def complex_personas() -> list[Persona]:
@@ -26,6 +27,7 @@ def complex_personas() -> list[Persona]:
         Persona(name="C", system_prompt="C"),
     ]
 
+
 @pytest.fixture
 def mock_proposers() -> list[MockProposer]:
     return [
@@ -34,11 +36,9 @@ def mock_proposers() -> list[MockProposer]:
         MockProposer(proposer_id_prefix="p3"),
     ]
 
+
 @pytest.mark.asyncio
-async def test_complex_high_entropy_loop(
-    complex_personas: list[Persona],
-    mock_proposers: list[MockProposer]
-) -> None:
+async def test_complex_high_entropy_loop(complex_personas: list[Persona], mock_proposers: list[MockProposer]) -> None:
     """
     Complex Scenario: "The Persistent Disagreement"
 
@@ -59,7 +59,7 @@ async def test_complex_high_entropy_loop(
     # Round 1 Check: 0.8 (High)
     # Round 2 Check: 0.6 (High)
     # Round 3 Check: 0.05 (Low -> Consensus)
-    mock_dissenter.calculate_entropy = AsyncMock(side_effect=[0.8, 0.6, 0.05]) # type: ignore
+    mock_dissenter.calculate_entropy = AsyncMock(side_effect=[0.8, 0.6, 0.05])  # type: ignore
 
     speaker = ChamberSpeaker(
         proposers=mock_proposers,
@@ -67,18 +67,19 @@ async def test_complex_high_entropy_loop(
         dissenter=mock_dissenter,
         aggregator=mock_aggregator,
         entropy_threshold=0.1,
-        max_rounds=5
+        max_rounds=5,
     )
 
     verdict, trace = await speaker.resolve_query("Difficult Query")
 
     # 1. Verify Loop Iterations
     # Entropy call count = 3
-    assert mock_dissenter.calculate_entropy.call_count == 3 # type: ignore
+    assert mock_dissenter.calculate_entropy.call_count == 3
 
     # 2. Verify Final State
     assert trace.entropy_score == 0.05
-    assert not trace.final_verdict.alternatives # Consensus reached, no alternatives
+    assert trace.final_verdict is not None
+    assert not trace.final_verdict.alternatives  # Consensus reached, no alternatives
 
     # 3. Verify Trace Transcript Structure
     actions = [t.action for t in trace.transcripts]
@@ -105,10 +106,10 @@ async def test_complex_high_entropy_loop(
     # Should end in ROUND_TABLE because it entered the loop
     assert trace.topology == TopologyType.ROUND_TABLE
 
+
 @pytest.mark.asyncio
 async def test_max_rounds_boundary_deadlock(
-    complex_personas: list[Persona],
-    mock_proposers: list[MockProposer]
+    complex_personas: list[Persona], mock_proposers: list[MockProposer]
 ) -> None:
     """
     Complex Scenario: "Immediate Deadlock"
@@ -124,7 +125,7 @@ async def test_max_rounds_boundary_deadlock(
     """
     mock_aggregator = MockAggregator()
     mock_dissenter = MockDissenter()
-    mock_dissenter.calculate_entropy = AsyncMock(return_value=0.9) # type: ignore
+    mock_dissenter.calculate_entropy = AsyncMock(return_value=0.9)  # type: ignore
 
     speaker = ChamberSpeaker(
         proposers=mock_proposers,
@@ -132,7 +133,7 @@ async def test_max_rounds_boundary_deadlock(
         dissenter=mock_dissenter,
         aggregator=mock_aggregator,
         entropy_threshold=0.1,
-        max_rounds=1
+        max_rounds=1,
     )
 
     verdict, trace = await speaker.resolve_query("Impossible Query")

@@ -9,13 +9,16 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 from typing import Annotated, Any
+
 from pydantic import BaseModel, Field
+
 
 class ProposerOutput(BaseModel):
     proposer_id: str
     content: str
     confidence: Annotated[float, Field(ge=0.0, le=1.0)]
     metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 class Critique(BaseModel):
     reviewer_id: str
