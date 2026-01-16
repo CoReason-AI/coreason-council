@@ -9,6 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 import pytest
+
 from coreason_council.core.budget import BudgetExceededError, SimpleBudgetManager
 
 

@@ -9,10 +9,11 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 import pytest
+from pydantic import ValidationError
+
 from coreason_council.core.models.interaction import ProposerOutput
 from coreason_council.core.models.trace import CouncilTrace, TopologyType
 from coreason_council.core.models.verdict import Verdict, VerdictOption
-from pydantic import ValidationError
 
 
 def test_trace_full_serialization_cycle() -> None:

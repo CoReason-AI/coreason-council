@@ -12,6 +12,7 @@ from typing import Any, cast
 from unittest.mock import AsyncMock
 
 import pytest
+
 from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.budget import SimpleBudgetManager
 from coreason_council.core.dissenter import MockDissenter

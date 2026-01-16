@@ -11,6 +11,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+
 from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.dissenter import MockDissenter
 from coreason_council.core.models.persona import Persona

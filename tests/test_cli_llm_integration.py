@@ -12,8 +12,9 @@ import os
 from typing import Any
 from unittest.mock import patch
 
-from coreason_council.main import app
 from typer.testing import CliRunner
+
+from coreason_council.main import app
 
 runner = CliRunner()
 

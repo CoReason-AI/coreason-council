@@ -11,6 +11,7 @@
 import asyncio
 
 import pytest
+
 from coreason_council.core.models.interaction import Critique, ProposerOutput
 from coreason_council.core.models.persona import Persona
 from coreason_council.core.proposer import MockProposer

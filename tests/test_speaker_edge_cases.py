@@ -11,6 +11,7 @@
 import time
 
 import pytest
+
 from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.dissenter import MockDissenter
 from coreason_council.core.models.interaction import Critique, ProposerOutput

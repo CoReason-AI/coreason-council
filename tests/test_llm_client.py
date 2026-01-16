@@ -11,8 +11,9 @@
 import json
 
 import pytest
-from coreason_council.core.llm_client import LLMRequest, MockLLMClient
 from pydantic import BaseModel
+
+from coreason_council.core.llm_client import LLMRequest, MockLLMClient
 
 
 class MockSchema(BaseModel):

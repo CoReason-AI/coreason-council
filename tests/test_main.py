@@ -11,12 +11,13 @@
 from typing import Any
 from unittest.mock import patch
 
+from typer.testing import CliRunner
+
 from coreason_council.core.models.interaction import Critique, ProposerOutput
 from coreason_council.core.models.persona import Persona
 
 # Original imports were: Critique, Persona, ProposerOutput
 from coreason_council.main import app
-from typer.testing import CliRunner
 
 runner = CliRunner()
 

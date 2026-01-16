@@ -9,6 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 import pytest
+
 from coreason_council.core.dissenter import JaccardDissenter
 from coreason_council.core.models.interaction import ProposerOutput
 from coreason_council.core.models.persona import Persona
