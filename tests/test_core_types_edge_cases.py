@@ -9,7 +9,9 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 
-from coreason_council.core.types import Verdict, VerdictOption
+from coreason_council.core.models.verdict import Verdict, VerdictOption
+
+# Original imports were: Verdict, VerdictOption
 
 
 def test_verdict_option_edge_cases() -> None:

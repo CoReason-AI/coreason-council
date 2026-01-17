@@ -11,7 +11,10 @@
 import pytest
 
 from coreason_council.core.dissenter import MockDissenter
-from coreason_council.core.types import Persona, ProposerOutput
+from coreason_council.core.models.interaction import ProposerOutput
+from coreason_council.core.models.persona import Persona
+
+# Original imports were: Persona, ProposerOutput
 
 
 @pytest.fixture

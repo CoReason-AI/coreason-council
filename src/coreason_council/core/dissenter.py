@@ -13,7 +13,8 @@ import re
 from abc import ABC, abstractmethod
 from itertools import combinations
 
-from coreason_council.core.types import Critique, Persona, ProposerOutput
+from coreason_council.core.models.interaction import Critique, ProposerOutput
+from coreason_council.core.models.persona import Persona
 from coreason_council.utils.logger import logger
 
 

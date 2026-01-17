@@ -11,7 +11,10 @@
 import pytest
 
 from coreason_council.core.aggregator import MockAggregator
-from coreason_council.core.types import Critique, ProposerOutput, Verdict
+from coreason_council.core.models.interaction import Critique, ProposerOutput
+from coreason_council.core.models.verdict import Verdict
+
+# Original imports were: Critique, ProposerOutput, Verdict
 
 
 @pytest.fixture
