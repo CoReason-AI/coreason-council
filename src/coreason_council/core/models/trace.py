@@ -10,21 +10,11 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Annotated, Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
-
-class PersonaType(str, Enum):
-    ONCOLOGIST = "oncologist"
-    BIOSTATISTICIAN = "biostatistician"
-    REGULATORY = "regulatory"
-    ARCHITECT = "architect"
-    SECURITY = "security"
-    QA = "qa"
-    SKEPTIC = "skeptic"
-    OPTIMIST = "optimist"
-    GENERALIST = "generalist"
+from coreason_council.core.models.verdict import Verdict
 
 
 class TopologyType(str, Enum):
@@ -32,47 +22,6 @@ class TopologyType(str, Enum):
     CHAIN = "chain"
     MESH = "mesh"
     ROUND_TABLE = "round_table"
-
-
-class VoteOption(str, Enum):
-    APPROVE = "approve"
-    REJECT = "reject"
-    ABSTAIN = "abstain"
-
-
-class Persona(BaseModel):
-    name: str
-    system_prompt: str
-    capabilities: list[str] = Field(default_factory=list)
-
-
-class ProposerOutput(BaseModel):
-    proposer_id: str
-    content: str
-    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class Critique(BaseModel):
-    reviewer_id: str
-    target_proposer_id: str
-    content: str
-    flaws_identified: list[str]
-    agreement_score: Annotated[float, Field(ge=0.0, le=1.0)]
-
-
-class VerdictOption(BaseModel):
-    label: str
-    content: str
-    supporters: list[str]
-
-
-class Verdict(BaseModel):
-    content: str
-    confidence_score: Annotated[float, Field(ge=0.0, le=1.0)]
-    supporting_evidence: list[str] = Field(default_factory=list)
-    dissenting_opinions: list[str] = Field(default_factory=list)
-    alternatives: list[VerdictOption] = Field(default_factory=list)
 
 
 class TranscriptEntry(BaseModel):

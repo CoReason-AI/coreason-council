@@ -14,15 +14,10 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from coreason_council.core.types import (
-    CouncilTrace,
-    Critique,
-    Persona,
-    ProposerOutput,
-    TopologyType,
-    Verdict,
-    VerdictOption,
-)
+from coreason_council.core.models.interaction import Critique, ProposerOutput
+from coreason_council.core.models.persona import Persona
+from coreason_council.core.models.trace import CouncilTrace, TopologyType
+from coreason_council.core.models.verdict import Verdict, VerdictOption
 
 
 def test_council_trace_initialization() -> None:

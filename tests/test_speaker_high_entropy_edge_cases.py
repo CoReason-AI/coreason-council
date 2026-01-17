@@ -12,9 +12,13 @@ import pytest
 
 from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.dissenter import MockDissenter
+from coreason_council.core.models.persona import Persona
+from coreason_council.core.models.trace import TopologyType
+from coreason_council.core.models.verdict import Verdict
 from coreason_council.core.proposer import MockProposer
 from coreason_council.core.speaker import ChamberSpeaker
-from coreason_council.core.types import Persona, TopologyType, Verdict
+
+# Original imports were: Persona, TopologyType, Verdict
 
 
 @pytest.fixture

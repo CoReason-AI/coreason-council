@@ -12,8 +12,11 @@ import asyncio
 
 import pytest
 
+from coreason_council.core.models.interaction import Critique, ProposerOutput
+from coreason_council.core.models.persona import Persona
 from coreason_council.core.proposer import MockProposer
-from coreason_council.core.types import Critique, Persona, ProposerOutput
+
+# Original imports were: Critique, Persona, ProposerOutput
 
 
 @pytest.fixture
@@ -122,7 +125,8 @@ async def test_mock_proposer_concurrency(mock_persona: Persona) -> None:
     # We assert it's much faster than sequential.
     assert len(results) == count
     assert total_time < (delay * count * 0.5)
-    assert total_time >= delay
+    # Allow small variance for system clock/scheduler differences on CI
+    assert total_time >= (delay * 0.9)
 
 
 @pytest.mark.asyncio

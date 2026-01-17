@@ -11,7 +11,8 @@
 import asyncio
 from abc import ABC, abstractmethod
 
-from coreason_council.core.types import Critique, ProposerOutput, Verdict
+from coreason_council.core.models.interaction import Critique, ProposerOutput
+from coreason_council.core.models.verdict import Verdict, VerdictOption
 from coreason_council.utils.logger import logger
 
 
@@ -76,17 +77,40 @@ class MockAggregator(BaseAggregator):
         proposer_ids = ", ".join([p.proposer_id for p in proposals])
         reviewer_ids = ", ".join([c.reviewer_id for c in critiques])
 
+        alternatives = []
+        confidence = self.default_confidence
+
         if is_deadlock:
             content = (
                 f"MINORITY REPORT: Deadlock detected. {self.default_content} "
                 f"(Options based on: {proposer_ids}; Critiques: {reviewer_ids})"
             )
+            confidence = 0.1  # Low confidence for deadlock
+
+            # Split proposers into two arbitrary groups to simulate competing options
+            mid = len(proposals) // 2
+            group_a = proposals[:mid]
+            group_b = proposals[mid:]
+
+            alternatives = [
+                VerdictOption(
+                    label="Option A",
+                    content=f"Option A content based on {[p.proposer_id for p in group_a]}",
+                    supporters=[p.proposer_id for p in group_a],
+                ),
+                VerdictOption(
+                    label="Option B",
+                    content=f"Option B content based on {[p.proposer_id for p in group_b]}",
+                    supporters=[p.proposer_id for p in group_b],
+                ),
+            ]
         else:
             content = f"{self.default_content} (Based on inputs from: {proposer_ids}; Critiqued by: {reviewer_ids})"
 
         return Verdict(
             content=content,
-            confidence_score=self.default_confidence,
+            confidence_score=confidence,
             supporting_evidence=self.default_supporting_evidence,
             dissenting_opinions=self.default_dissenting_opinions,
+            alternatives=alternatives,
         )

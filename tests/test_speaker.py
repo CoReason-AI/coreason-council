@@ -12,9 +12,13 @@ import pytest
 
 from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.dissenter import MockDissenter
+from coreason_council.core.models.persona import Persona
+from coreason_council.core.models.trace import CouncilTrace, TopologyType
+from coreason_council.core.models.verdict import Verdict
 from coreason_council.core.proposer import MockProposer
 from coreason_council.core.speaker import ChamberSpeaker
-from coreason_council.core.types import CouncilTrace, Persona, TopologyType, Verdict
+
+# Original imports were: CouncilTrace, Persona, TopologyType, Verdict
 
 
 @pytest.fixture
@@ -149,6 +153,9 @@ async def test_resolve_query_low_entropy_flow(
     assert "p1-Persona A" in verdict.content
     assert "p2-Persona B" in verdict.content
 
+    # 4. Verify Vote Tally
+    assert trace.vote_tally == {"Consensus": 2}
+
 
 @pytest.mark.asyncio
 async def test_resolve_query_high_entropy_flow(
@@ -207,3 +214,6 @@ async def test_resolve_query_high_entropy_flow(
         "Critiqued by: Persona A, Persona B" in verdict.content
         or "Critiqued by: Persona B, Persona A" in verdict.content
     )
+
+    # 5. Verify Vote Tally (Consensus Reached)
+    assert trace.vote_tally == {"Consensus": 2}
