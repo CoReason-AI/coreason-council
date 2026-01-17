@@ -4,7 +4,7 @@
 
 `coreason-council` is the Multi-Agent Consensus Engine ("The Jury") for the CoReason platform. It validates reasoning through **Ensemble Reasoning**, implementing **Mixture-of-Agents (MoA)** topologies to reduce hallucination and bias.
 
-For full documentation, including installation, usage, and architecture details, please refer to the [README](../README.md).
+For full documentation, including installation, usage, and architecture details, please refer to the [README](https://github.com/CoReason-AI/coreason_council/blob/main/README.md).
 
 ## Quick Links
 
