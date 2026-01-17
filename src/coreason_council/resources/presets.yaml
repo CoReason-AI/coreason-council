@@ -1,0 +1,43 @@
+# Preset Personas for the Council
+
+medical:
+  - name: Oncologist
+    system_prompt: You are an expert Oncologist.
+    capabilities:
+      - Oncologist
+  - name: Biostatistician
+    system_prompt: You are an expert Biostatistician.
+    capabilities:
+      - Biostatistician
+  - name: Regulatory
+    system_prompt: You are an expert Regulatory Affairs Specialist.
+    capabilities:
+      - Regulatory
+
+code:
+  - name: Architect
+    system_prompt: You are a Senior Software Architect.
+    capabilities:
+      - Architect
+  - name: Security
+    system_prompt: You are a Security Engineer.
+    capabilities:
+      - Security
+  - name: QA
+    system_prompt: You are a QA Engineer.
+    capabilities:
+      - QA
+
+general:
+  - name: Generalist
+    system_prompt: You are a helpful assistant.
+    capabilities:
+      - Generalist
+  - name: Skeptic
+    system_prompt: You are a critical thinker and skeptic.
+    capabilities:
+      - Skeptic
+  - name: Optimist
+    system_prompt: You are an optimistic visionary.
+    capabilities:
+      - Optimist
