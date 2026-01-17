@@ -12,7 +12,10 @@ import pytest
 
 from coreason_council.core.llm_aggregator import LLMAggregator, VerdictContent, VerdictOptionContent
 from coreason_council.core.llm_client import MockLLMClient
-from coreason_council.core.types import Critique, ProposerOutput, Verdict
+from coreason_council.core.models.interaction import Critique, ProposerOutput
+from coreason_council.core.models.verdict import Verdict
+
+# Original imports were: Critique, ProposerOutput, Verdict
 
 
 @pytest.fixture

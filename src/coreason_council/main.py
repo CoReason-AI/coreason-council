@@ -21,10 +21,10 @@ from coreason_council.core.dissenter import JaccardDissenter
 from coreason_council.core.llm_aggregator import LLMAggregator
 from coreason_council.core.llm_client import OpenAILLMClient
 from coreason_council.core.llm_proposer import LLMProposer
+from coreason_council.core.models.persona import Persona
 from coreason_council.core.panel_selector import PanelSelector
 from coreason_council.core.proposer import BaseProposer
 from coreason_council.core.speaker import ChamberSpeaker
-from coreason_council.core.types import Persona
 from coreason_council.settings import settings
 from coreason_council.utils.logger import logger
 

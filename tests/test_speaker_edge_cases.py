@@ -14,9 +14,13 @@ import pytest
 
 from coreason_council.core.aggregator import MockAggregator
 from coreason_council.core.dissenter import MockDissenter
+from coreason_council.core.models.interaction import Critique, ProposerOutput
+from coreason_council.core.models.persona import Persona
+from coreason_council.core.models.verdict import Verdict, VerdictOption
 from coreason_council.core.proposer import MockProposer
 from coreason_council.core.speaker import ChamberSpeaker
-from coreason_council.core.types import Critique, Persona, ProposerOutput, Verdict
+
+# Original imports were: Critique, Persona, ProposerOutput, Verdict
 
 
 @pytest.fixture
@@ -148,8 +152,6 @@ async def test_vote_tally_deadlock_edge_cases(mock_personas_3: list[Persona], mo
         async def aggregate(
             self, proposals: list[ProposerOutput], critiques: list[Critique], is_deadlock: bool = False
         ) -> Verdict:
-            from coreason_council.core.types import VerdictOption
-
             return Verdict(
                 content="Deadlock",
                 confidence_score=0.1,

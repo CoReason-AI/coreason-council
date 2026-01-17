@@ -14,7 +14,8 @@ from pydantic import BaseModel, Field
 
 from coreason_council.core.aggregator import BaseAggregator
 from coreason_council.core.llm_client import BaseLLMClient, LLMRequest
-from coreason_council.core.types import Critique, ProposerOutput, Verdict, VerdictOption
+from coreason_council.core.models.interaction import Critique, ProposerOutput
+from coreason_council.core.models.verdict import Verdict, VerdictOption
 from coreason_council.utils.logger import logger
 
 
