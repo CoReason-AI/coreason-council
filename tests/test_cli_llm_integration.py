@@ -19,60 +19,43 @@ from coreason_council.main import app
 runner = CliRunner()
 
 
-def test_cli_llm_missing_api_key() -> None:
-    """Test failure when --llm is used without OPENAI_API_KEY."""
-    # Ensure env var is unset
-    with patch.dict(os.environ, clear=True):
-        if "OPENAI_API_KEY" in os.environ:
-            del os.environ["OPENAI_API_KEY"]
-
-        # Also patch settings to return None
-        with patch("coreason_council.settings.settings.openai_api_key", None):
-            result = runner.invoke(app, ["query", "--llm"])
-            assert result.exit_code != 0
-            err_msg = "OPENAI_API_KEY environment variable is required"
-            assert err_msg in result.stderr or err_msg in result.output
-
-
 def test_cli_llm_wiring() -> None:
     """Test that --llm flag correctly instantiates LLM components."""
-    # Patch settings and env
-    with patch("coreason_council.settings.settings.openai_api_key", "sk-mock"):
-        with patch("coreason_council.main.OpenAILLMClient") as MockClient:
-            with patch("coreason_council.main.LLMProposer"):
-                with patch("coreason_council.main.LLMAggregator") as MockAggregator:
-                    with patch("coreason_council.main.ChamberSpeaker") as MockSpeaker:
-                        # Setup mocks to allow execution to proceed
-                        mock_speaker_instance = MockSpeaker.return_value
+    with patch("coreason_council.main.GatewayLLMClient") as MockClient:
+        with patch("coreason_council.main.LLMProposer"):
+            with patch("coreason_council.main.LLMAggregator") as MockAggregator:
+                with patch("coreason_council.main.ChamberSpeaker") as MockSpeaker:
+                    # Setup mocks to allow execution to proceed
+                    mock_speaker_instance = MockSpeaker.return_value
 
-                        # Make resolve_query awaitable
-                        async def mock_resolve(*args: Any, **kwargs: Any) -> Any:
-                            return (
-                                type(
-                                    "Verdict",
-                                    (),
-                                    {
-                                        "content": "V",
-                                        "confidence_score": 1.0,
-                                        "supporting_evidence": [],
-                                        "alternatives": [],
-                                    },
-                                )(),
-                                type(
-                                    "Trace",
-                                    (),
-                                    {"session_id": "1", "transcripts": [], "vote_tally": {}},
-                                )(),
-                            )
+                    # Make resolve_query awaitable
+                    async def mock_resolve(*args: Any, **kwargs: Any) -> Any:
+                        return (
+                            type(
+                                "Verdict",
+                                (),
+                                {
+                                    "content": "V",
+                                    "confidence_score": 1.0,
+                                    "supporting_evidence": [],
+                                    "alternatives": [],
+                                },
+                            )(),
+                            type(
+                                "Trace",
+                                (),
+                                {"session_id": "1", "transcripts": [], "vote_tally": {}},
+                            )(),
+                        )
 
-                        mock_speaker_instance.resolve_query.side_effect = mock_resolve
+                    mock_speaker_instance.resolve_query.side_effect = mock_resolve
 
-                        result = runner.invoke(app, ["query", "--llm"])
+                    result = runner.invoke(app, ["query", "--llm"])
 
-                        assert result.exit_code == 0
-                        MockClient.assert_called()
-                        # LLMProposer should be used (via factory), but checking call count is hard here
-                        MockAggregator.assert_called()
+                    assert result.exit_code == 0
+                    MockClient.assert_called()
+                    # LLMProposer should be used (via factory), but checking call count is hard here
+                    MockAggregator.assert_called()
 
 
 def test_cli_default_wiring() -> None:

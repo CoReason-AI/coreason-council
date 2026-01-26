@@ -39,14 +39,16 @@ class LLMProposer(BaseProposer):
     A Proposer implementation that uses a real LLM via BaseLLMClient.
     """
 
-    def __init__(self, llm_client: BaseLLMClient) -> None:
+    def __init__(self, llm_client: BaseLLMClient, model: str = "gpt-4o") -> None:
         """
         Initializes the LLMProposer.
 
         Args:
             llm_client: The LLM client to use for generating responses.
+            model: The LLM model identifier to use (e.g. 'gpt-4o').
         """
         self.llm_client = llm_client
+        self.model = model
 
     async def propose(self, query: str, persona: Persona) -> ProposerOutput:
         """
@@ -66,19 +68,15 @@ class LLMProposer(BaseProposer):
             messages=[{"role": "user", "content": user_prompt}],
             system_prompt=system_prompt,
             response_schema=ProposalContent,
-            metadata={"persona": persona.name, "task": "propose"},
+            metadata={"persona": persona.name, "task": "propose", "model": self.model},
         )
 
         response = await self.llm_client.get_completion(request)
 
-        # Handle potential failure to parse (though OpenAILLMClient should handle it or raise)
+        # Handle potential failure to parse
         if response.raw_content and isinstance(response.raw_content, ProposalContent):
             result = response.raw_content
         else:
-            # Fallback if raw_content isn't populated (e.g. non-structured client or error)
-            # For now, we assume strict adherence to the client contract which says raw_content
-            # is populated if response_schema was used.
-            # But let's be safe for typing.
             raise ValueError("LLM failed to return structured ProposalContent.")
 
         return ProposerOutput(
@@ -88,7 +86,7 @@ class LLMProposer(BaseProposer):
             metadata={
                 "persona": persona.name,
                 "usage": response.usage,
-                "model": response.provider_metadata.get("model"),
+                "model": response.provider_metadata.get("model", self.model),
             },
         )
 
@@ -115,7 +113,7 @@ class LLMProposer(BaseProposer):
             messages=[{"role": "user", "content": user_prompt}],
             system_prompt=system_prompt,
             response_schema=CritiqueContent,
-            metadata={"persona": persona.name, "task": "critique"},
+            metadata={"persona": persona.name, "task": "critique", "model": self.model},
         )
 
         response = await self.llm_client.get_completion(request)
@@ -167,7 +165,7 @@ class LLMProposer(BaseProposer):
             messages=[{"role": "user", "content": user_prompt}],
             system_prompt=system_prompt,
             response_schema=ProposalContent,
-            metadata={"persona": persona.name, "task": "revise"},
+            metadata={"persona": persona.name, "task": "revise", "model": self.model},
         )
 
         response = await self.llm_client.get_completion(request)
@@ -184,7 +182,7 @@ class LLMProposer(BaseProposer):
             metadata={
                 "persona": persona.name,
                 "usage": response.usage,
-                "model": response.provider_metadata.get("model"),
+                "model": response.provider_metadata.get("model", self.model),
                 "revision_of": original_proposal.proposer_id,
                 "critique_count": len(critiques),
             },

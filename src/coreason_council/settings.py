@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     Reads from environment variables and .env file.
     """
 
-    openai_api_key: str | None = None
+    gateway_url: str = "http://coreason-ai-gateway:8000/v1"
+    gateway_access_token: str | None = None
     presets_file: str = "src/coreason_council/resources/presets.yaml"
 
     model_config = SettingsConfigDict(
