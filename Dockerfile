@@ -35,3 +35,12 @@ COPY --from=builder /wheels /wheels
 
 # Install the application wheel
 RUN pip install --no-cache-dir /wheels/*.whl
+
+# Environment Variable for Gateway
+ENV GATEWAY_URL="http://coreason-ai-gateway:8000/v1"
+
+# Expose port
+EXPOSE 8000
+
+# Run the server
+CMD ["uvicorn", "coreason_council.server:app", "--host", "0.0.0.0", "--port", "8000"]
