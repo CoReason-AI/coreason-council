@@ -11,6 +11,7 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from pydantic import BaseModel
 
@@ -56,9 +57,7 @@ async def test_gateway_client_completion() -> None:
 @pytest.mark.asyncio
 async def test_gateway_client_structured_output() -> None:
     client = GatewayLLMClient(gateway_url="http://test-gw")
-    request = LLMRequest(
-        messages=[{"role": "user", "content": "Decide"}], response_schema=MockSchema
-    )
+    request = LLMRequest(messages=[{"role": "user", "content": "Decide"}], response_schema=MockSchema)
 
     expected_json = {"verdict": "yes", "confidence": 0.9}
     mock_response = MagicMock()
@@ -90,7 +89,6 @@ async def test_gateway_client_structured_output() -> None:
         assert messages[0]["role"] == "system"
         assert "IMPORTANT: You must respond with valid JSON" in messages[0]["content"]
 
-import httpx
 
 @pytest.mark.asyncio
 async def test_gateway_client_http_error() -> None:
@@ -118,9 +116,7 @@ async def test_gateway_client_request_error() -> None:
         mock_instance = AsyncMock()
         MockClient.return_value.__aenter__.return_value = mock_instance
 
-        mock_instance.post.side_effect = httpx.RequestError(
-            "Connection Refused", request=MagicMock(url="url")
-        )
+        mock_instance.post.side_effect = httpx.RequestError("Connection Refused", request=MagicMock(url="url"))
 
         with pytest.raises(httpx.RequestError):
             await client.get_completion(request)
@@ -148,14 +144,10 @@ async def test_gateway_client_invalid_json_response() -> None:
 @pytest.mark.asyncio
 async def test_gateway_client_structured_output_parsing_failure() -> None:
     client = GatewayLLMClient()
-    request = LLMRequest(
-        messages=[{"role": "user", "content": "Hi"}], response_schema=MockSchema
-    )
+    request = LLMRequest(messages=[{"role": "user", "content": "Hi"}], response_schema=MockSchema)
 
     mock_response = MagicMock()
-    mock_response.json.return_value = {
-        "choices": [{"message": {"content": "Not JSON"}, "finish_reason": "stop"}]
-    }
+    mock_response.json.return_value = {"choices": [{"message": {"content": "Not JSON"}, "finish_reason": "stop"}]}
 
     with patch("httpx.AsyncClient") as MockClient:
         mock_instance = AsyncMock()

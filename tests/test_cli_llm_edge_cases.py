@@ -8,10 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
-import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from coreason_council.main import app

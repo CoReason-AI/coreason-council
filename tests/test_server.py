@@ -45,9 +45,8 @@ def test_convene_session(mock_convene: AsyncMock) -> None:
     assert data["confidence_score"] == 0.9
     assert len(data["votes"]) == 2
 
-    mock_convene.assert_awaited_once_with(
-        topic="Test Topic", persona_names=["A", "B"], model="gpt-4o"
-    )
+    mock_convene.assert_awaited_once_with(topic="Test Topic", persona_names=["A", "B"], model="gpt-4o")
+
 
 @patch("coreason_council.server.service.convene_session", new_callable=AsyncMock)
 def test_convene_session_failure(mock_convene: AsyncMock) -> None:

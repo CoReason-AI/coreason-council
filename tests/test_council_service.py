@@ -48,9 +48,7 @@ def test_load_presets_not_found(mock_exists: MagicMock) -> None:
 @patch("coreason_council.core.council_service.yaml.safe_load")
 @patch("builtins.open")
 @patch("coreason_council.core.council_service.Path.exists")
-def test_load_presets_exception(
-    mock_exists: MagicMock, mock_open: MagicMock, mock_yaml: MagicMock
-) -> None:
+def test_load_presets_exception(mock_exists: MagicMock, mock_open: MagicMock, mock_yaml: MagicMock) -> None:
     mock_exists.return_value = True
     mock_yaml.side_effect = Exception("YAML Error")
     service = CouncilService()
@@ -74,17 +72,13 @@ def test_get_persona() -> None:
 @patch("coreason_council.core.council_service.GatewayLLMClient")
 @patch("coreason_council.core.council_service.LLMProposer")
 @patch("coreason_council.core.council_service.LLMAggregator")
-async def test_convene_session(
-    MockAggregator: MagicMock, MockProposer: MagicMock, MockClient: MagicMock
-) -> None:
+async def test_convene_session(MockAggregator: MagicMock, MockProposer: MagicMock, MockClient: MagicMock) -> None:
     service = CouncilService()
     service.presets = {}
 
     mock_proposer_instance = MockProposer.return_value
     mock_proposer_instance.propose = AsyncMock()
-    mock_proposer_instance.propose.return_value = MagicMock(
-        content="Vote", confidence=0.8, proposer_id="p1"
-    )
+    mock_proposer_instance.propose.return_value = MagicMock(content="Vote", confidence=0.8, proposer_id="p1")
 
     mock_aggregator_instance = MockAggregator.return_value
     mock_aggregator_instance.aggregate = AsyncMock()

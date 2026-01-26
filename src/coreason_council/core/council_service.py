@@ -52,14 +52,12 @@ class CouncilService:
                 data = yaml.safe_load(f)
 
             if isinstance(data, dict):
-                for category, items in data.items():
+                for _category, items in data.items():
                     if isinstance(items, list):
                         for item in items:
                             if "name" in item:
                                 name = item["name"]
-                                capabilities = [
-                                    PersonaType(cap) for cap in item.get("capabilities", [])
-                                ]
+                                capabilities = [PersonaType(cap) for cap in item.get("capabilities", [])]
                                 personas[name] = Persona(
                                     name=name,
                                     system_prompt=item.get("system_prompt", ""),
@@ -82,9 +80,7 @@ class CouncilService:
             capabilities=[PersonaType.GENERALIST],
         )
 
-    async def convene_session(
-        self, topic: str, persona_names: list[str], model: str = "gpt-4o"
-    ) -> dict[str, Any]:
+    async def convene_session(self, topic: str, persona_names: list[str], model: str = "gpt-4o") -> dict[str, Any]:
         """
         Orchestrates a council session: Scatter (Propose) -> Gather -> Synthesize.
         """
@@ -109,7 +105,7 @@ class CouncilService:
 
         # Parallel Execution
         proposal_tasks = []
-        for proposer, persona in zip(proposers, personas):
+        for proposer, persona in zip(proposers, personas, strict=True):
             proposal_tasks.append(proposer.propose(topic, persona))
 
         votes = await asyncio.gather(*proposal_tasks)

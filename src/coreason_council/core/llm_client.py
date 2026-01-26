@@ -211,7 +211,7 @@ class GatewayLLMClient(BaseLLMClient):
                     raw_content = request.response_schema.model_validate(parsed_json)
                 except (json.JSONDecodeError, ValueError) as e:
                     logger.error(f"Failed to parse structured output: {e}")
-                    raise ValueError(f"LLM failed to return valid JSON matching schema: {e}")
+                    raise ValueError(f"LLM failed to return valid JSON matching schema: {e}") from e
 
             return LLMResponse(
                 content=content_str,
@@ -227,4 +227,4 @@ class GatewayLLMClient(BaseLLMClient):
 
         except (KeyError, IndexError) as e:
             logger.error(f"Unexpected response format from Gateway: {e}")
-            raise ValueError(f"Invalid response format from Gateway: {e}")
+            raise ValueError(f"Invalid response format from Gateway: {e}") from e

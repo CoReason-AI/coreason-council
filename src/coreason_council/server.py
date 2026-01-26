@@ -60,7 +60,7 @@ async def convene_session(request: ConveneRequest) -> Any:
         return result
     except Exception as e:
         logger.exception("Failed to convene session")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/health")
