@@ -19,13 +19,12 @@ from coreason_council.core.aggregator import BaseAggregator, MockAggregator
 from coreason_council.core.budget import SimpleBudgetManager
 from coreason_council.core.dissenter import JaccardDissenter
 from coreason_council.core.llm_aggregator import LLMAggregator
-from coreason_council.core.llm_client import OpenAILLMClient
+from coreason_council.core.llm_client import GatewayLLMClient
 from coreason_council.core.llm_proposer import LLMProposer
 from coreason_council.core.models.persona import Persona
 from coreason_council.core.panel_selector import PanelSelector
 from coreason_council.core.proposer import BaseProposer
 from coreason_council.core.speaker import ChamberSpeaker
-from coreason_council.settings import settings
 from coreason_council.utils.logger import logger
 
 app = typer.Typer()
@@ -46,12 +45,8 @@ async def _run_council(
     proposer_factory: Callable[[Persona], BaseProposer] | None
 
     if llm:
-        if not settings.openai_api_key:
-            typer.echo("OPENAI_API_KEY environment variable is required when using --llm.", err=True)
-            raise typer.Exit(code=1)
-
         # Shared Client
-        llm_client = OpenAILLMClient()
+        llm_client = GatewayLLMClient()
 
         # Factories
         def _llm_factory(p: Persona) -> BaseProposer:
@@ -124,7 +119,7 @@ def run_council(
     entropy_threshold: Annotated[float, Option(help="Entropy threshold for consensus.")] = 0.1,
     max_budget: Annotated[int, Option(help="Maximum budget (in operations) before downgrading topology.")] = 100,
     show_trace: Annotated[bool, Option(help="Display the full debate transcript.")] = False,
-    llm: Annotated[bool, Option(help="Use Real LLM (OpenAI) instead of Mock agents. Requires OPENAI_API_KEY.")] = False,
+    llm: Annotated[bool, Option(help="Use Real LLM (Service Gateway) instead of Mock agents.")] = False,
 ) -> None:
     """
     Run a Council session for a given QUERY.

@@ -9,12 +9,11 @@
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
 import asyncio
+import json
 from abc import ABC, abstractmethod
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
-import instructor
-from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletionMessageParam
+import httpx
 from pydantic import BaseModel, Field
 
 from coreason_council.settings import settings
@@ -120,104 +119,112 @@ class MockLLMClient(BaseLLMClient):
         )
 
 
-class OpenAILLMClient(BaseLLMClient):
+class GatewayLLMClient(BaseLLMClient):
     """
-    OpenAI implementation of LLM Client using Instructor.
+    LLM Client that talks to the Internal Gateway Service (Service H).
     """
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
-        """
-        Initializes the OpenAI client patched with Instructor.
-        Relies on settings.openai_api_key if api_key is not provided.
-        """
-        key = api_key or settings.openai_api_key
-        # We assume OPENAI_API_KEY is available in env or settings
-        self.client = instructor.from_openai(AsyncOpenAI(api_key=key))
+    def __init__(self, gateway_url: Optional[str] = None, access_token: Optional[str] = None) -> None:
+        self.gateway_url = gateway_url or settings.gateway_url
+        self.access_token = access_token or settings.gateway_access_token
 
     async def get_completion(self, request: LLMRequest) -> LLMResponse:
-        """
-        Generates a completion using OpenAI API via Instructor.
-        """
-        logger.debug(f"OpenAILLMClient processing request with {len(request.messages)} messages.")
+        logger.debug(f"GatewayLLMClient calling {self.gateway_url} with {len(request.messages)} messages.")
 
-        # Prepare messages
-        messages: list[ChatCompletionMessageParam] = []
+        messages = []
         if request.system_prompt:
             messages.append({"role": "system", "content": request.system_prompt})
+        messages.extend(request.messages)
 
-        for msg in request.messages:
-            # msg is dict[str, str], we cast to ChatCompletionMessageParam to satisfy type checker
-            # Assuming structure is correct (role, content)
-            messages.append(cast(ChatCompletionMessageParam, msg))
-
-        # Default model if not specified in metadata
         model = str(request.metadata.get("model", "gpt-4o"))
+        response_format = None
 
+        # Handle structured output schema injection
+        if (
+            request.response_schema
+            and isinstance(request.response_schema, type)
+            and issubclass(request.response_schema, BaseModel)
+        ):
+            # Inject schema into system prompt or as response format if supported
+            # We assume OpenAI-compatible "response_format={'type': 'json_object'}" and prompting
+            schema = request.response_schema.model_json_schema()
+            schema_str = json.dumps(schema, indent=2)
+
+            # Append instructions to the last system message or create one
+            instruction = (
+                f"\n\nIMPORTANT: You must respond with valid JSON matching the following schema:\n{schema_str}"
+            )
+
+            # Find last system message or insert one
+            found_system = False
+            for msg in messages:
+                if msg["role"] == "system":
+                    msg["content"] += instruction
+                    found_system = True
+                    break
+            if not found_system:
+                messages.insert(0, {"role": "system", "content": instruction})
+
+            response_format = {"type": "json_object"}
+
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+        }
+        if response_format:
+            payload["response_format"] = response_format
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+        if self.access_token:
+            headers["Authorization"] = f"Bearer {self.access_token}"
+
+        async with httpx.AsyncClient() as client:
+            try:
+                # Append /chat/completions if not present, but settings default is /v1 which implies we need path
+                url = self.gateway_url.rstrip("/") + "/chat/completions"
+                response = await client.post(url, json=payload, headers=headers, timeout=60.0)
+                response.raise_for_status()
+                data = response.json()
+            except httpx.RequestError as exc:
+                logger.error(f"An error occurred while requesting {exc.request.url!r}.")
+                raise
+            except httpx.HTTPStatusError as exc:
+                logger.error(f"Error response {exc.response.status_code} while requesting {exc.request.url!r}.")
+                raise
+
+        # Parse response
         try:
-            if (
-                request.response_schema
-                and isinstance(request.response_schema, type)
-                and issubclass(request.response_schema, BaseModel)
-            ):
-                # Use Instructor for structured output
-                logger.debug(f"Using instructor.chat.completions.create with schema {request.response_schema.__name__}")
+            choice = data["choices"][0]
+            content_str = choice["message"]["content"]
+            finish_reason = choice.get("finish_reason")
+            usage_data = data.get("usage", {})
 
-                # Instructor's create returns the parsed object directly
-                response_model = request.response_schema
-
-                # We use create_with_completion to get usage stats
-                parsed_content, completion = await self.client.chat.completions.create_with_completion(
-                    model=model,
-                    messages=messages,
-                    response_model=response_model,
-                    temperature=request.temperature,
-                    max_tokens=request.max_tokens,
-                )
-
-                content_str = parsed_content.model_dump_json()
-                raw_content = parsed_content
-                usage_obj = completion.usage
-                finish_reason = completion.choices[0].finish_reason
-                completion_id = completion.id
-
-            else:
-                # Standard completion
-                # Actually, instructor wraps the client. If we want raw completion without validation,
-                # we might need to access the original client or pass response_model=None if supported.
-                # Instructor docs say:
-                # client.chat.completions.create(..., response_model=None) returns regular response.
-
-                completion = await self.client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=request.temperature,
-                    max_tokens=request.max_tokens,
-                    response_model=None,
-                )
-
-                content_str = completion.choices[0].message.content or ""
-                raw_content = None
-                finish_reason = completion.choices[0].finish_reason
-                usage_obj = completion.usage
-                completion_id = completion.id
-
-            # Extract usage
-            usage = {}
-            if usage_obj:
-                usage = {
-                    "prompt_tokens": usage_obj.prompt_tokens,
-                    "completion_tokens": usage_obj.completion_tokens,
-                    "total_tokens": usage_obj.total_tokens,
-                }
+            raw_content = None
+            if request.response_schema and response_format:
+                # Parse JSON content
+                try:
+                    parsed_json = json.loads(content_str)
+                    raw_content = request.response_schema.model_validate(parsed_json)
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.error(f"Failed to parse structured output: {e}")
+                    raise ValueError(f"LLM failed to return valid JSON matching schema: {e}") from e
 
             return LLMResponse(
                 content=content_str,
                 raw_content=raw_content,
-                usage=usage,
-                finish_reason=str(finish_reason) if finish_reason else None,
-                provider_metadata={"model": model, "id": completion_id},
+                usage={
+                    "prompt_tokens": usage_data.get("prompt_tokens", 0),
+                    "completion_tokens": usage_data.get("completion_tokens", 0),
+                    "total_tokens": usage_data.get("total_tokens", 0),
+                },
+                finish_reason=finish_reason,
+                provider_metadata={"model": model, "id": data.get("id")},
             )
 
-        except Exception as e:
-            logger.error(f"OpenAI API call failed: {str(e)}")
-            raise e
+        except (KeyError, IndexError) as e:
+            logger.error(f"Unexpected response format from Gateway: {e}")
+            raise ValueError(f"Invalid response format from Gateway: {e}") from e

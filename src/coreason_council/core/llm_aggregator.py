@@ -46,14 +46,16 @@ class LLMAggregator(BaseAggregator):
     An Aggregator implementation that uses a real LLM via BaseLLMClient.
     """
 
-    def __init__(self, llm_client: BaseLLMClient) -> None:
+    def __init__(self, llm_client: BaseLLMClient, model: str = "gpt-4o") -> None:
         """
         Initializes the LLMAggregator.
 
         Args:
             llm_client: The LLM client to use for generating verdicts.
+            model: The LLM model identifier to use (e.g. 'gpt-4o').
         """
         self.llm_client = llm_client
+        self.model = model
 
     async def aggregate(
         self,
@@ -117,7 +119,7 @@ class LLMAggregator(BaseAggregator):
             messages=[{"role": "user", "content": user_prompt}],
             system_prompt=system_prompt,
             response_schema=VerdictContent,
-            metadata={"task": "aggregate", "is_deadlock": is_deadlock},
+            metadata={"task": "aggregate", "is_deadlock": is_deadlock, "model": self.model},
         )
 
         response = await self.llm_client.get_completion(request)
