@@ -19,7 +19,7 @@ from coreason_council.utils.logger import logger
 app = FastAPI(
     title="CoReason Council Service",
     description="Microservice L: The Boardroom/Jury (Consensus Engine)",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 # Initialize Service (Singleton pattern via module scope)
