@@ -21,8 +21,8 @@ def require_medical_director_approval(plan: Plan, user_context: "UserContext") -
     Policy: Returns True only if the user is a Medical Director
     OR if the plan confidence is extremely high (>0.95).
     """
-    # Assuming UserContext has a 'groups' attribute which is a list/set of strings
-    if "Medical Director" in user_context.groups:
+    # Assuming UserContext has a 'permissions' attribute which is a list/set of strings
+    if "Medical Director" in user_context.permissions:
         return True
 
     if plan.confidence > 0.95:

@@ -34,15 +34,15 @@ def review_plan(plan: Plan, user_context: "UserContext") -> ReviewResult:
     """
     Reviews a plan against security policies and user permissions.
     """
-    logger.info(f"Reviewing plan {plan.id} for user {user_context.user_id}")
+    logger.info(f"Reviewing plan {plan.id} for user {user_context.sub}")
 
     # 1. High Risk Check
     # If plan involves "delete_database", user must be "admin"
     HIGH_RISK_TOOLS = {"delete_database"}
     for tool in plan.tools:
         if tool in HIGH_RISK_TOOLS:
-            if "admin" not in user_context.groups:
-                reason = f"User {user_context.user_id} lacks required role for action {tool}."
+            if "admin" not in user_context.permissions:
+                reason = f"User {user_context.sub} lacks required role for action {tool}."
                 logger.warning(f"Plan Rejected: {reason}", extra={"user_context": user_context.model_dump()})
                 return ReviewResult(status=ApprovalStatus.REJECTED, rejection_reason=reason)
 
@@ -72,6 +72,6 @@ def review_plan(plan: Plan, user_context: "UserContext") -> ReviewResult:
 
     # Audit log
     logger.info(
-        f"Plan {plan.id} approved for user {user_context.user_id}", extra={"user_context": user_context.model_dump()}
+        f"Plan {plan.id} approved for user {user_context.sub}", extra={"user_context": user_context.model_dump()}
     )
     return ReviewResult(status=ApprovalStatus.APPROVED)

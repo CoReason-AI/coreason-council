@@ -20,11 +20,12 @@ from coreason_council.utils.logger import logger
 
 try:
     from coreason_identity.models import UserContext
-except ImportError:
+except ImportError:  # pragma: no cover
     # Fallback for when coreason-identity is not installed
     class UserContext(BaseModel):  # type: ignore
-        user_id: str
-        groups: List[str] = []
+        sub: str
+        email: str
+        permissions: List[str] = []
 
 
 app = FastAPI(

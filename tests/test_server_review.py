@@ -8,9 +8,11 @@ client = TestClient(app)
 def test_submit_review_approved() -> None:
     payload = {
         "plan": {"id": "p1", "title": "Safe Plan", "tools": ["read_file"], "confidence": 0.9},
-        "user_context": {"user_id": "u1", "groups": ["user"]},
+        "user_context": {"sub": "u1", "email": "user@example.com", "permissions": ["user"]},
     }
     response = client.post("/v1/plan/review", json=payload)
+    if response.status_code != 200:
+        print(response.json())
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "approved"
@@ -19,7 +21,7 @@ def test_submit_review_approved() -> None:
 def test_submit_review_rejected() -> None:
     payload = {
         "plan": {"id": "p2", "title": "Dangerous Plan", "tools": ["delete_database"], "confidence": 0.9},
-        "user_context": {"user_id": "u2", "groups": ["user"]},
+        "user_context": {"sub": "u2", "email": "user@example.com", "permissions": ["user"]},
     }
     response = client.post("/v1/plan/review", json=payload)
     assert response.status_code == 200
