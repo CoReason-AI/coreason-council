@@ -14,12 +14,24 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from coreason_council.core.council_service import CouncilService
+from coreason_council.core.models.plan import Plan
+from coreason_council.reviewer import ReviewResult, review_plan
 from coreason_council.utils.logger import logger
+
+try:
+    from coreason_identity.models import UserContext
+except ImportError:  # pragma: no cover
+    # Fallback for when coreason-identity is not installed
+    class UserContext(BaseModel):  # type: ignore
+        sub: str
+        email: str
+        permissions: List[str] = []
+
 
 app = FastAPI(
     title="CoReason Council Service",
     description="Microservice L: The Boardroom/Jury (Consensus Engine)",
-    version="0.4.0",
+    version="0.5.0",
 )
 
 # Initialize Service (Singleton pattern via module scope)
@@ -43,6 +55,20 @@ class ConveneResponse(BaseModel):
     confidence_score: float
     dissent: Optional[str] = None
     votes: List[VoteResponse]
+
+
+class ReviewRequest(BaseModel):
+    plan: Plan
+    user_context: UserContext
+
+
+@app.post("/v1/plan/review", response_model=ReviewResult)
+async def submit_for_review(request: ReviewRequest) -> Any:
+    """
+    Reviews a plan against security policies and user permissions.
+    """
+    logger.info(f"Received review request for plan: '{request.plan.id}'")
+    return review_plan(request.plan, request.user_context)
 
 
 @app.post("/v1/session/convene", response_model=ConveneResponse)
