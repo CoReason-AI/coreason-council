@@ -14,6 +14,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from coreason_council.core.models.interaction import ProposerOutput
 from coreason_council.core.models.verdict import Verdict
 
 
@@ -42,6 +43,7 @@ class CouncilTrace(BaseModel):
     topology: TopologyType
     entropy_score: Optional[float] = None
     vote_tally: Optional[dict[str, int]] = None
+    final_votes: Optional[list[ProposerOutput]] = None
     final_verdict: Optional[Verdict] = None
 
     def log_interaction(self, actor: str, action: str, content: str) -> None:
