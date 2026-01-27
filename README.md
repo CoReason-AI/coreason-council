@@ -52,6 +52,33 @@ The synthesis engine that creates the final "Verdict". It takes the proposals an
     poetry install
     ```
 
+## Microservice Deployment
+
+Coreason-council is designed to operate as a standalone microservice (Service L) using Docker.
+
+### 1. Build the Docker Image
+```sh
+docker build -t coreason-council:latest .
+```
+
+### 2. Run the Service
+The service requires the `GATEWAY_URL` environment variable to connect to the internal AI Gateway.
+
+```sh
+docker run -d \
+  -p 8000:8000 \
+  -e GATEWAY_URL="http://your-gateway-url:8000/v1" \
+  coreason-council:latest
+```
+
+### 3. API Endpoints
+The service exposes a REST API for convening council sessions.
+
+*   **POST /v1/session/convene**: Start a new consensus session.
+*   **GET /health**: Health check for Kubernetes probes.
+
+See [docs/usage.md](docs/usage.md) for detailed API usage.
+
 ## Configuration
 
 To use the LLM capabilities (e.g., OpenAI models), you must set the following environment variable:
