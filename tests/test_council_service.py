@@ -69,26 +69,39 @@ def test_get_persona() -> None:
 
 
 @pytest.mark.asyncio
+@patch("coreason_council.core.council_service.ChamberSpeaker")
 @patch("coreason_council.core.council_service.GatewayLLMClient")
 @patch("coreason_council.core.council_service.LLMProposer")
 @patch("coreason_council.core.council_service.LLMAggregator")
-async def test_convene_session(MockAggregator: MagicMock, MockProposer: MagicMock, MockClient: MagicMock) -> None:
+@patch("coreason_council.core.council_service.JaccardDissenter")
+async def test_convene_session(
+    MockDissenter: MagicMock,
+    MockAggregator: MagicMock,
+    MockProposer: MagicMock,
+    MockClient: MagicMock,
+    MockSpeaker: MagicMock,
+) -> None:
     service = CouncilService()
     service.presets = {}
 
-    mock_proposer_instance = MockProposer.return_value
-    mock_proposer_instance.propose = AsyncMock()
-    mock_proposer_instance.propose.return_value = MagicMock(content="Vote", confidence=0.8, proposer_id="p1")
-
-    mock_aggregator_instance = MockAggregator.return_value
-    mock_aggregator_instance.aggregate = AsyncMock()
-    mock_aggregator_instance.aggregate.return_value = Verdict(
+    # Setup Speaker Mock
+    mock_speaker_instance = MockSpeaker.return_value
+    mock_verdict = Verdict(
         content="Verdict",
         confidence_score=0.9,
         supporting_evidence=[],
         dissenting_opinions=["Dissent"],
         alternatives=[],
     )
+    mock_trace = MagicMock()
+    # Mock final_votes
+    vote = MagicMock()
+    vote.proposer_id = "p1"
+    vote.content = "Vote"
+    vote.confidence = 0.8
+    mock_trace.final_votes = [vote]
+
+    mock_speaker_instance.resolve_query = AsyncMock(return_value=(mock_verdict, mock_trace))
 
     result = await service.convene_session("Topic", ["A"], "gpt-4o")
 
@@ -96,3 +109,9 @@ async def test_convene_session(MockAggregator: MagicMock, MockProposer: MagicMoc
     assert result["dissent"] == "Dissent"
     assert len(result["votes"]) == 1
     assert result["votes"][0]["content"] == "Vote"
+    assert result["votes"][0]["proposer"] == "p1"
+    assert result["votes"][0]["confidence"] == 0.8
+
+    # Verify Speaker was called with components
+    MockSpeaker.assert_called_once()
+    mock_speaker_instance.resolve_query.assert_awaited_once_with("Topic")

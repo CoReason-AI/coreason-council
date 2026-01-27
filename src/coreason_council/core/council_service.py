@@ -8,16 +8,17 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_council
 
-import asyncio
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from coreason_council.core.dissenter import JaccardDissenter
 from coreason_council.core.llm_aggregator import LLMAggregator
 from coreason_council.core.llm_client import GatewayLLMClient
 from coreason_council.core.llm_proposer import LLMProposer
 from coreason_council.core.models.persona import Persona, PersonaType
+from coreason_council.core.speaker import ChamberSpeaker
 from coreason_council.settings import settings
 from coreason_council.utils.logger import logger
 
@@ -82,49 +83,54 @@ class CouncilService:
 
     async def convene_session(self, topic: str, persona_names: list[str], model: str = "gpt-4o") -> dict[str, Any]:
         """
-        Orchestrates a council session: Scatter (Propose) -> Gather -> Synthesize.
+        Orchestrates a council session: Scatter (Propose) -> Debate (Critique) -> Synthesize (Aggregate).
+        Delegates to ChamberSpeaker to manage the full lifecycle.
         """
-        client = GatewayLLMClient()
-
-        # Resolve Personas
-        personas = [self.get_persona(name) for name in persona_names]
-
-        # Phase 1: Scatter (Propose)
-        # We assume LLMProposer and LLMAggregator will be updated to accept 'model'
-        # or we rely on client default. Since we haven't updated them yet,
-        # we'll instantiate them as is.
-        # (Self-correction: I should update them to support model propagation).
-        # For now, I'll pass kwargs to constructor if I update them,
-        # or I'll patch them.
-
-        # I will update LLMProposer and LLMAggregator in the next file writes.
-        # So I will assume the constructor accepts `model`.
-        proposers = [LLMProposer(client, model=model) for _ in personas]
-
         logger.info(f"Session Start: Topic='{topic}', Personas={persona_names}, Model='{model}'")
 
-        # Parallel Execution
-        proposal_tasks = []
-        for proposer, persona in zip(proposers, personas, strict=True):
-            proposal_tasks.append(proposer.propose(topic, persona))
+        # 1. Initialize Infrastructure
+        client = GatewayLLMClient()
 
-        votes = await asyncio.gather(*proposal_tasks)
+        # 2. Resolve Personas & Instantiate Proposers
+        personas = [self.get_persona(name) for name in persona_names]
+        proposers = [LLMProposer(client, model=model) for _ in personas]
 
-        # Phase 2: Synthesize (Aggregate)
+        # 3. Instantiate Consensus Components
+        dissenter = JaccardDissenter()
         aggregator = LLMAggregator(client, model=model)
-        verdict = await aggregator.aggregate(votes, critiques=[], is_deadlock=False)
 
-        # Construct Response
+        # 4. Instantiate Speaker (The Orchestrator)
+        speaker = ChamberSpeaker(
+            proposers=proposers,
+            personas=personas,
+            dissenter=dissenter,
+            aggregator=aggregator,
+            # We use default entropy and rounds for now, or could expose them via request
+            entropy_threshold=0.1,
+            max_rounds=3,
+        )
+
+        # 5. Execute Session
+        verdict, trace = await speaker.resolve_query(topic)
+
+        # 6. Transform Response
+        votes = []
+        if trace.final_votes:
+            for v in trace.final_votes:
+                votes.append(
+                    {
+                        "proposer": v.proposer_id,
+                        "content": v.content,
+                        "confidence": v.confidence,
+                    }
+                )
+
+        # Format dissenting opinions
+        dissent_str = "; ".join(verdict.dissenting_opinions) if verdict.dissenting_opinions else None
+
         return {
             "verdict": verdict.content,
             "confidence_score": verdict.confidence_score,
-            "dissent": "; ".join(verdict.dissenting_opinions),
-            "votes": [
-                {
-                    "proposer": v.proposer_id,
-                    "content": v.content,
-                    "confidence": v.confidence,
-                }
-                for v in votes
-            ],
+            "dissent": dissent_str,
+            "votes": votes,
         }
