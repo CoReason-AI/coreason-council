@@ -121,6 +121,7 @@ class ChamberSpeaker:
         )
 
         # --- Phase 3: Final Aggregation ---
+        trace.final_votes = proposals
         verdict = await self._phase_three_verdict(proposals, critiques, is_deadlock, trace)
 
         return verdict, trace
