@@ -6,13 +6,13 @@ Coreason-council relies on a modern Python stack to ensure type safety, robust c
 *   **Python 3.12+**: The project leverages the latest Python features for performance and typing.
 
 ## Microservice & API
-*   **FastAPI**: For building the high-performance REST API.
-*   **Uvicorn**: An ASGI web server implementation for Python.
-*   **Pydantic**: For data validation and settings management.
-*   **Pydantic Settings**: For 12-factor app configuration management via environment variables.
+*   **FastAPI (>=0.127.0)**: For building the high-performance REST API.
+*   **Uvicorn (>=0.40.0)**: An ASGI web server implementation for Python (Standard Extras).
+*   **Pydantic (>=2.12.5)**: For data validation and settings management.
+*   **Pydantic Settings (>=2.12.0)**: For 12-factor app configuration management via environment variables.
 
 ## Networking & LLM
-*   **HTTPX**: A next-generation HTTP client for Python, used for making async calls to the AI Gateway.
+*   **HTTPX (>=0.28.1)**: A next-generation HTTP client for Python, used for making async calls to the AI Gateway.
 *   **OpenAI**: Official Python library for the OpenAI API (v1.x), used when running in direct LLM mode.
 
 ## Utilities

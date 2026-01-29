@@ -14,7 +14,7 @@ You can run the service using Docker. Ensure you have the `GATEWAY_URL` configur
 docker run -d \
   -p 8000:8000 \
   -e GATEWAY_URL="http://coreason-ai-gateway:8000/v1" \
-  coreason-council:0.4.0
+  coreason-council:0.6.0
 ```
 
 ### API Endpoints
