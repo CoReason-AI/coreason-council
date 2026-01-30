@@ -74,7 +74,7 @@ async def submit_for_review(request: ReviewRequest) -> Any:
 @app.post("/v1/session/convene", response_model=ConveneResponse)
 async def convene_session(request: ConveneRequest) -> Any:
     """
-    Orchestrates a parallel debate/consensus session.
+    Orchestrates a parallel debate/consensus session using the Scatter-Gather pattern.
     """
     logger.info(f"Received convene request for topic: '{request.topic}'")
     try:

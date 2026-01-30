@@ -54,11 +54,11 @@ The synthesis engine that creates the final "Verdict". It takes the proposals an
 
 ## Microservice Deployment
 
-Coreason-council is designed to operate as a standalone microservice (Service L) using Docker.
+Coreason-council is designed to operate as a standalone microservice (Service L) using Docker, leveraging **FastAPI** and **Uvicorn** for high-performance async execution.
 
 ### 1. Build the Docker Image
 ```sh
-docker build -t coreason-council:latest .
+docker build -t coreason-council:0.6.0 .
 ```
 
 ### 2. Run the Service
@@ -68,13 +68,13 @@ The service requires the `GATEWAY_URL` environment variable to connect to the in
 docker run -d \
   -p 8000:8000 \
   -e GATEWAY_URL="http://your-gateway-url:8000/v1" \
-  coreason-council:latest
+  coreason-council:0.6.0
 ```
 
 ### 3. API Endpoints
 The service exposes a REST API for convening council sessions.
 
-*   **POST /v1/session/convene**: Start a new consensus session.
+*   **POST /v1/session/convene**: Orchestrate a parallel debate session (Scatter-Gather).
 *   **GET /health**: Health check for Kubernetes probes.
 
 See [docs/usage.md](docs/usage.md) for detailed API usage.
